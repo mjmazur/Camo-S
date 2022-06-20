@@ -1560,8 +1560,8 @@ class Ui(QtWidgets.QMainWindow):
             z_valid = image.ravel()[valid_z]
 
             if len(z_valid) > 100:
-                sc1 = ax.scatter(x_valid,y_valid, color='yellowgreen', marker='.')
-                sc2 = ax.scatter(x_valid,y_valid, color='gold', marker='.')
+                # sc1 = ax.scatter(x_valid,y_valid, color='yellowgreen', marker='.')
+                # sc2 = ax.scatter(x_valid,y_valid, color='gold', marker='.')
 
                 ransac = RANSACRegressor(residual_threshold=5).fit(x_valid.reshape(-1,1), y_valid.reshape(-1,1), sample_weight=z_valid)
                 # ransac.fit(x_valid.reshape(-1,1), y_valid.reshape(-1,1), sample_weight=z_valid**2)

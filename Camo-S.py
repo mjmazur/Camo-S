@@ -1576,8 +1576,8 @@ class Ui(QtWidgets.QMainWindow):
                 mae.append(mean_absolute_error(y_valid,prediction))
                 scores.append(ransac.score(x_valid.reshape(-1,1), y_valid.reshape(-1,1)))
 
-                sc1.set_offsets(np.c_[x_valid[inlier_mask], y_valid[inlier_mask]])
-                sc2.set_offsets(np.c_[x_valid[outlier_mask], y_valid[outlier_mask]])
+                # sc1.set_offsets(np.c_[x_valid[inlier_mask], y_valid[inlier_mask]])
+                # sc2.set_offsets(np.c_[x_valid[outlier_mask], y_valid[outlier_mask]])
 
                 z = np.polyfit(x_valid,y_valid, w=z_valid, deg=1)
                 p = np.poly1d(z)

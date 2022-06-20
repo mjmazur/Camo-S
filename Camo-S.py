@@ -18,7 +18,7 @@ Widgets: Name_widgetype, i.e. Upload_button, Direct_linedit, Spectral_label
 import numpy as np
 import pyqtgraph as pg
 import sys 
-sys.path.append('./RMS/RMS/Routines')
+sys.path.append('../RMS/RMS/Routines')
 import matplotlib.pyplot as plt
 import scipy.ndimage
 import os
@@ -1536,8 +1536,8 @@ class Ui(QtWidgets.QMainWindow):
        # image = imageio.imread('TestSpectrum1.png', as_gray=True)
         image = self.spectral_frame_img
 
-        fig = plt.figure(figsize=(10,6))
-        ax = fig.add_subplot(111)
+        # fig = plt.figure(figsize=(10,6))
+        # ax = fig.add_subplot(111)
 
         y,x = np.indices(image.shape)
 
@@ -1549,10 +1549,10 @@ class Ui(QtWidgets.QMainWindow):
 
         for i in range(1,np.amax(image),int(np.amax(image)*0.02)):
 
-            axins = ax.inset_axes([-0.1,0.8,0.3,0.3])
-            ax.set_xlim(0,image.shape[1])
-            ax.set_ylim(0,image.shape[0])
-            plt.gca().invert_yaxis()
+            # axins = ax.inset_axes([-0.1,0.8,0.3,0.3])
+            # ax.set_xlim(0,image.shape[1])
+            # ax.set_ylim(0,image.shape[0])
+            # plt.gca().invert_yaxis()
 
             valid_z = (y.ravel()>0) & (image.ravel()>(400+i))
             x_valid = x.ravel()[valid_z]
@@ -1585,13 +1585,13 @@ class Ui(QtWidgets.QMainWindow):
                 x_plot = np.linspace(x_valid.min(), x_valid.max(), 100)
                 y_plot = p(x_plot)
 
-                ax.plot(x_plot, y_plot, '-r', lw=2, label='LR')
-                ax.plot(line_X, line_y_ransac, label='RANSAC')
+                # ax.plot(x_plot, y_plot, '-r', lw=2, label='LR')
+                # ax.plot(line_X, line_y_ransac, label='RANSAC')
 
-                axins.plot(mae, label='MAE')
+                # axins.plot(mae, label='MAE')
 
-                ax.legend(loc='upper right')
-                axins.legend(loc='upper right')
+                # ax.legend(loc='upper right')
+                # axins.legend(loc='upper right')
 
                 this_roll = -1*math.degrees(math.atan2((line_y_ransac.max()-line_y_ransac.min()),(line_X.max()-line_X.min())))                
                 roll_ransac.append(this_roll)
@@ -1599,17 +1599,17 @@ class Ui(QtWidgets.QMainWindow):
                 this_b = line_y_ransac.max()-((line_y_ransac.max()-line_y_ransac.min())/(line_X.max()-line_X.min()))*line_X.max()
                 b_ransac.append(this_b)
                 
-                ax.text(int(image.shape[1]/4),-10,f'This roll = {this_roll:.3} degrees')
+                # ax.text(int(image.shape[1]/4),-10,f'This roll = {this_roll:.3} degrees')
 
                 if len(mae) > 1:
                     best_roll = roll_ransac[np.argmin(mae)]
-                    ax.text(int(image.shape[1]/2),-10,f'Best roll = {best_roll:.3} degrees')
+                    # ax.text(int(image.shape[1]/2),-10,f'Best roll = {best_roll:.3} degrees')
 
                     self.Roll_rollbox.setValue(best_roll)
 
                     x_vals = np.linspace(0,image.shape[1],2)
                     y_vals = b_ransac[np.argmin(mae)]+20+ np.tan(math.radians(best_roll))*x_vals
-                    ax.plot(x_vals, y_vals, '--')
+                    # ax.plot(x_vals, y_vals, '--')
 
                     self.spectralAutoROI(image.shape[1],20,best_roll,b_ransac[np.argmin(mae)])
 
@@ -1618,13 +1618,13 @@ class Ui(QtWidgets.QMainWindow):
             # print(line_y_ransac.max()-((line_y_ransac.max()-line_y_ransac.min())/(line_X.max()-line_X.min()))*line_X.max())
             # plt.axis('equal')
 
-            fig.canvas.draw_idle()
-            plt.pause(0.01)
-            ax.cla()
+        #     fig.canvas.draw_idle()
+        #     plt.pause(0.01)
+        #     ax.cla()
 
-            # plt.show()
+        #     # plt.show()
 
-        plt.waitforbuttonpress()
+        # plt.waitforbuttonpress()
 
         # self.spectralAutoROI(image.shape[1],20,best_roll,b_ransac[np.argmin(mae)])
 

@@ -619,7 +619,9 @@ class Ui(QtWidgets.QMainWindow):
         # Jump back 5 frames
         self.BackFiveDirect_button.clicked.connect(self.backFiveDirectFrames)                  
         # Run affine transform        
-        self.Affine_button.clicked.connect(self.affineTransform)        
+        self.Affine_button.clicked.connect(self.affineTransform)
+        # Update affine transform
+        self.UpdateAffine_button.clicked.connect(self.updateTransform)        
         # Next frame (both direct and spectral)       
         self.NextFrame_button.clicked.connect(self.nextFrame)
         # Last frame (both direct and spectral)   
@@ -671,7 +673,7 @@ class Ui(QtWidgets.QMainWindow):
 
         #################### Elemental Abundance Buttons #################
 
-
+        self.ResetElements_button.clicked.connect(self.clearSpec)
 
         ######################## Commands Buttons #########################
 
@@ -920,9 +922,22 @@ class Ui(QtWidgets.QMainWindow):
         # pen = pg.mkPen('b', width=2)
         # self.Plot.plot(self.element_array[:,0], self.element_array[:,1], pen=pg.mkPen('b', width=3))
         # pen = pg.mkPen('r', width=1)
-        self.Plot.plot(self.element_array[:,0], self.element_array[:,2], pen=pg.mkPen('r', width=3))
+        
+        plotName = str(self.elemName)
 
-        print('Plotting element... %s' % self.elemName)
+        try: globals()[plotName]
+        except KeyError:  globals()[plotName] = None
+
+        if globals()[plotName] is None:
+            print('plotName is undefined')
+            globals()[plotName] = self.Plot.plot(self.element_array[:,0], self.element_array[:,2], pen=pg.mkPen('r', width=3))
+            print('Plotting element for the first time... %s' % self.elemName)
+        else:
+            print('plotName is defined')
+            globals()[plotName].setData(self.element_array[:,0], self.element_array[:,2])
+            print('Updated element data')
+
+        
 
     def refreshPlot(self):
         # self.spectral.elemdata.
@@ -948,6 +963,9 @@ class Ui(QtWidgets.QMainWindow):
             self.element_array[i][1] = self.spectral.elemdata.els[self.elemIndex].speclo[i]
             self.element_array[i][2] = self.spectral.elemdata.els[self.elemIndex].spechi[i]
 
+
+        self.element_array[:][1] = self.element_array[:][1] * 10**self.Scale_rollbox.value()
+        self.element_array[:][2] = self.element_array[:][2] * 10**self.Scale_rollbox.value()
         # self.calculateElementSpectrum()
         self.plotElement(self)
         print('Plot refreshed...')
@@ -1223,18 +1241,33 @@ class Ui(QtWidgets.QMainWindow):
         Sets data for the affine_markers, and displays the point on the 
         spectral image.
         """
+        dlg = QFileDialog()
+        dlg.setFileMode(QFileDialog.AnyFile)
+
+        if dlg.exec():
+            scale_file_name = dlg.selectedFiles()
+            print(scale_file_name)
         
         # Scale plate file path
         scale_dir_path = "."
-        scale_file_name = "direct_spectral_20210526_02J.aff"
+        # scale_file_name = "direct_spectral_20210526_02J.aff"
 
         # Load the scale plate
-        scale = loadScale(scale_dir_path, scale_file_name)
+        self.scale = loadScale(scale_dir_path, scale_file_name[0])
+
+        # Enable the update button
+        self.UpdateAffine_button.setEnabled(True)
 
         # Convert image (X, Y) to encoder (Hu, Hv)
-        self.hu, self.hv = plateScaleMap(scale, self.dir_x, self.dir_y)
+        self.hu, self.hv = plateScaleMap(self.scale, self.dir_x, self.dir_y)
 
         # Set data for markers and plot on 
+        self.affine_markers.setData(x = [self.hu], y = [self.hv])
+
+    def updateTransform(self):
+        deltaX = int(self.DeltaX_edit.text())
+        deltaY = int(self.DeltaY_edit.text())
+        self.hu, self.hv = plateScaleMap(self.scale, self.dir_x + deltaX, self.dir_y + deltaY)
         self.affine_markers.setData(x = [self.hu], y = [self.hv])
 
     ################# SPECTRAL FILE CONTROL FUNCTIONS #################
@@ -1288,9 +1321,9 @@ class Ui(QtWidgets.QMainWindow):
                 if byteswap:
                     flat_img = flat_img.byteswap()
             
-                plt.figure()
-                plt.imshow(flat_img)
-                plt.show()
+                # plt.figure()
+                # plt.imshow(flat_img)
+                # plt.show()
 
                 # Init a new Flat structure
                 self.flat_structure = FlatStruct(flat_img, dark=dark)
@@ -2067,7 +2100,7 @@ class Ui(QtWidgets.QMainWindow):
 
         # Set axis titles 
         self.Plot.setLabel('left', 'Intensity')
-        self.Plot.setLabel('bottom', 'Wavelength')
+        self.Plot.setLabel('bottom', 'Wavelength (nm)')
 
         # Create the plot
         self.Plot.plot(scaled_spectral_profile, spectral_profile, pen = pen)

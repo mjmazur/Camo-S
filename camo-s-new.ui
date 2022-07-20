@@ -29,6 +29,9 @@
       <verstretch>0</verstretch>
      </sizepolicy>
     </property>
+    <property name="mouseTracking">
+     <bool>true</bool>
+    </property>
    </widget>
    <widget class="QGroupBox" name="groupBox">
     <property name="geometry">
@@ -285,7 +288,7 @@
      <enum>QTabWidget::East</enum>
     </property>
     <property name="currentIndex">
-     <number>1</number>
+     <number>0</number>
     </property>
     <property name="documentMode">
      <bool>false</bool>
@@ -1170,7 +1173,7 @@
          <item>
           <widget class="QLabel" name="label_3">
            <property name="text">
-            <string>Scale Exp</string>
+            <string>y scale</string>
            </property>
           </widget>
          </item>

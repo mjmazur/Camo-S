@@ -532,6 +532,10 @@ class Ui(QtWidgets.QMainWindow):
         # Enable mouse click event in the image view widget
         self.direct_image.mousePressEvent = self.getDirectPosition
 
+        #################### INITIALIZE PLOT MOUSE #####################
+
+        self.Plot.scene().sigMouseClicked.connect(self.mouse_clicked)
+
         #################### SPECTRAL FILE IMAGE VIEW ####################
 
         # Create the image widget with graphics view
@@ -905,6 +909,12 @@ class Ui(QtWidgets.QMainWindow):
     ###############################################################################################
     ###################################### /// FUNCTIONS /// ######################################
     ###############################################################################################
+    def mouse_clicked(self, evt):
+        vb = self.Plot.plotItem.vb
+        scene_coords = evt.scenePos()
+        if self.Plot.sceneBoundingRect().contains(scene_coords):
+            mouse_point = vb.mapSceneToView(scene_coords)
+            print(f'clicked plot X: {mouse_point.x()}, Y: {mouse_point.y()}, event: {evt}')
 
     def plotElement(self, event):
 
@@ -999,11 +1009,11 @@ class Ui(QtWidgets.QMainWindow):
 
         self.element_array[:,1] = self.element_array[:,1] * 10**self.Scale_rollbox.value()
         self.element_array[:,2] = self.element_array[:,2] * 10**self.Scale_rollbox.value()
-        print(np.max(self.element_array[:,0]))
-        print(np.max(self.element_array[:,1]))
-        print(np.max(self.element_array[:,2]))
-        print(np.shape(self.element_array))
-        print(np.max(scaled_spectral_profile))
+        # print(np.max(self.element_array[:,0]))
+        # print(np.max(self.element_array[:,1]))
+        # print(np.max(self.element_array[:,2]))
+        # print(np.shape(self.element_array))
+        # print(np.max(scaled_spectral_profile))
         # self.calculateElementSpectrum()
         self.plotElement(self)
         # print('Plot refreshed...')
@@ -1056,7 +1066,7 @@ class Ui(QtWidgets.QMainWindow):
         # Detect whether shift key is held down
         mods = QtGui.QApplication.keyboardModifiers()
         isShiftPressed = mods & QtCore.Qt.ShiftModifier
-        print("Shift? %s" % bool(isShiftPressed))
+        # print("Shift? %s" % bool(isShiftPressed))
         if bool(isShiftPressed) == True:
             self.sender().setStyleSheet('background-color:#FFFFFF;font:bold')
 
@@ -1067,10 +1077,10 @@ class Ui(QtWidgets.QMainWindow):
         self.elemNumber = self.elementDeets[self.buttonIndex][2]
         self.elemIndex = self.elementDeets[self.buttonIndex][3]
 
-        print('Button name is %s' % str(self.buttonClicked))
-        # print('Button index is %s' % self.buttonIndex)
-        # print('Element index is %s' % self.elemIndex)
-        print('Element number is %s' % self.elemNumber)
+        # print('Button name is %s' % str(self.buttonClicked))
+        # # print('Button index is %s' % self.buttonIndex)
+        # # print('Element index is %s' % self.elemIndex)
+        # print('Element number is %s' % self.elemNumber)
 
         if self.elementDeets[self.buttonIndex][1] < 2:
             self.elementDeets[self.buttonIndex][1] += 1

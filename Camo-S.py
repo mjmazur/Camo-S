@@ -532,6 +532,13 @@ class Ui(QtWidgets.QMainWindow):
         # Enable mouse click event in the image view widget
         self.direct_image.mousePressEvent = self.getDirectPosition
 
+        #################### SPECTRAL MARKERS ####################
+
+        # Init affine marker on spectral image
+        self.direct_markers = pg.ScatterPlotItem()
+        self.direct_markers.setData(pxMode=False, symbol='+', size=15, pen='r', brush='r')
+        self.direct_imageframe.addItem(self.direct_markers) 
+
         #################### INITIALIZE PLOT MOUSE #####################
 
         self.Plot.scene().sigMouseClicked.connect(self.mouse_clicked)
@@ -1289,7 +1296,7 @@ class Ui(QtWidgets.QMainWindow):
         Sets data for the affine_markers, and displays the point on the 
         spectral image.
         """
-        dlg = QFileDialog()
+        dlg = QFileDialog(filter="Affine files (*.aff)")
         dlg.setFileMode(QFileDialog.AnyFile)
 
         if dlg.exec():
@@ -1344,7 +1351,7 @@ class Ui(QtWidgets.QMainWindow):
 
     def uploadSpectralFlat(self, dtype=None, byteswap=True, dark=None):
 
-        dlg = QFileDialog()
+        dlg = QFileDialog(filter='PNG files (*.png)')
         dlg.setFileMode(QFileDialog.AnyFile)
 
         if dlg.exec():
@@ -1600,6 +1607,11 @@ class Ui(QtWidgets.QMainWindow):
 
         # # Re-initialize the direct ROI
         # self.direct_roi = None
+
+        self.dir_x = extractions[0,0]
+        self.dir_y = extractions[0,1]
+
+        self.direct_markers.setData(x = [self.dir_x], y = [self.dir_y])
 
         if self.direct_roi is None:
             self.direct_roi = pg.CircleROI((extractions[0,0]-30,extractions[0,1]-30), size = (60, 60), angle = 0, \

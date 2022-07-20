@@ -660,6 +660,8 @@ class Ui(QtWidgets.QMainWindow):
         # Auto pick meteor
         self.AutoPickDirect_button.clicked.connect(self.autoPickDirect)
 
+        self.AutoTrackDirect_button.clicked.connect(self.autoTrackDirect)
+
         ##### Flat
         self.UploadSpectralFlat_button.clicked.connect(self.uploadSpectralFlat)
 
@@ -782,9 +784,9 @@ class Ui(QtWidgets.QMainWindow):
         spectral_library.readSpectralConfig(self.spectral)
         spectral_library.allocMemory(self.spectral)
 
-        print("Version: %s" % self.spectral.spconfig.version)
-        print("Spectral order: %s" % self.spectral.spconfig.order4spcalib)
-        print('Nominal low excitation temperature: %s' % self.spectral.spconfig.nominal_lo_exc_temp)
+        # print("Version: %s" % self.spectral.spconfig.version)
+        # print("Spectral order: %s" % self.spectral.spconfig.order4spcalib)
+        # print('Nominal low excitation temperature: %s' % self.spectral.spconfig.nominal_lo_exc_temp)
 
         # Assign camera numbers to the grating structure
         for i in range(spectral_library.MAXGRATINGS):
@@ -893,7 +895,7 @@ class Ui(QtWidgets.QMainWindow):
         #           of incidence of the light path onto the grating.
         camos_camera_index = 0
         self.spectral.spcalib.gratinfo[camos_camera_index].grating_area_scale = math.cos(self.spectral.spconfig.grating_offnormal_deg * 3.141592654 / 180.0)
-        print('Grating area scale: %s' % self.spectral.spcalib.gratinfo[camos_camera_index].grating_area_scale)
+        # print('Grating area scale: %s' % self.spectral.spcalib.gratinfo[camos_camera_index].grating_area_scale)
 
         #========== Set user adjustable values in the elemdata structure to their starting defaults
         #              such as sigma, temperatures, electron density, hot-to-warm, airmass factor
@@ -922,33 +924,64 @@ class Ui(QtWidgets.QMainWindow):
         # pen = pg.mkPen('b', width=2)
         # self.Plot.plot(self.element_array[:,0], self.element_array[:,1], pen=pg.mkPen('b', width=3))
         # pen = pg.mkPen('r', width=1)
-        
+
+        # Na Element number is 11
+        # K Element number is 19
+        # Mg Element number is 12
+        # O Element number is 8
+        # N2 Element number is 7
+        # Si Element number is 14
+        # Fe Element number is 26
+        # Ca Element number is 20
+        # N Element number is 7
+
+        if self.elemName == 'Na':
+            pen_color = (0,9)
+        elif self.elemName == 'K':
+            pen_color = (1,9)
+        elif self.elemName == 'Mg':
+            pen_color = (2,9)
+        elif self.elemName == 'O':
+            pen_color = (3,9)
+        elif self.elemName == 'N2':
+            pen_color = (4,9)
+        elif self.elemName == 'Si':
+            pen_color = (5,9)
+        elif self.elemName == 'Fe':
+            pen_color = (6,9)
+        elif self.elemName == 'Ca':
+            pen_color = (7,9)
+        elif self.elemName == 'N':
+            pen_color = (8,9)
+        else:
+            pen_color = 'w' 
+
         plotName = str(self.elemName)
 
         try: globals()[plotName]
         except KeyError:  globals()[plotName] = None
 
         if globals()[plotName] is None:
-            print('plotName is undefined')
-            globals()[plotName] = self.Plot.plot(self.element_array[:,0], self.element_array[:,2], pen=pg.mkPen('r', width=3))
-            print('Plotting element for the first time... %s' % self.elemName)
+            # print('plotName is undefined')
+            globals()[plotName] = self.Plot.plot(self.element_array[:,0], self.element_array[:,2], pen=pg.mkPen(pen_color, width=3))
+            # print('Plotting element for the first time... %s' % self.elemName)
         else:
-            print('plotName is defined')
+            # print('plotName is defined')
             globals()[plotName].setData(self.element_array[:,0], self.element_array[:,2])
-            print('Updated element data')
+            # print('Updated element data')
 
         
 
     def refreshPlot(self):
         # self.spectral.elemdata.
-        print('Hot2Warm: %s' % self.spectral.elemdata.hot2warm)
+        # print('Hot2Warm: %s' % self.spectral.elemdata.hot2warm)
         self.spectral.spconfig.default_hot2warm = self.Hot2WarmRatio_rollbox.value()
         self.spectral.elemdata.hot2warm = self.Hot2WarmRatio_rollbox.value()
 
-        print('Hot2Warm: %s' % self.spectral.elemdata.hot2warm)
-        print('Sigma0: %s' % self.spectral.elemdata.sigma0)
+        # print('Hot2Warm: %s' % self.spectral.elemdata.hot2warm)
+        # print('Sigma0: %s' % self.spectral.elemdata.sigma0)
         self.spectral.elemdata.sigma0 = self.Sigma_rollbox.value()
-        print('Sigma0: %s' % self.spectral.elemdata.sigma0)
+        # print('Sigma0: %s' % self.spectral.elemdata.sigma0)
         # self.spectral.changeBroadening(10)
 
         spectral_library.GuralSpectral.plasmaVolumes(self.spectral)
@@ -964,12 +997,17 @@ class Ui(QtWidgets.QMainWindow):
             self.element_array[i][2] = self.spectral.elemdata.els[self.elemIndex].spechi[i]
 
 
-        self.element_array[:][1] = self.element_array[:][1] * 10**self.Scale_rollbox.value()
-        self.element_array[:][2] = self.element_array[:][2] * 10**self.Scale_rollbox.value()
+        self.element_array[:,1] = self.element_array[:,1] * 10**self.Scale_rollbox.value()
+        self.element_array[:,2] = self.element_array[:,2] * 10**self.Scale_rollbox.value()
+        print(np.max(self.element_array[:,0]))
+        print(np.max(self.element_array[:,1]))
+        print(np.max(self.element_array[:,2]))
+        print(np.shape(self.element_array))
+        print(np.max(scaled_spectral_profile))
         # self.calculateElementSpectrum()
         self.plotElement(self)
-        print('Plot refreshed...')
-        print('Max element value: %s %s' % (max(self.element_array[:,1]), max(self.element_array[:,2])))
+        # print('Plot refreshed...')
+        # print('Max element value: %s %s' % (max(self.element_array[:,1]), max(self.element_array[:,2])))
 
     def calculateElementSpectrum(self):
         #========== If any of the input arguments in the call below to PlasmaVolumes changes
@@ -1006,7 +1044,7 @@ class Ui(QtWidgets.QMainWindow):
             self.element_array[i][1] = self.spectral.elemdata.els[self.elemIndex].speclo[i]
             self.element_array[i][2] = self.spectral.elemdata.els[self.elemIndex].spechi[i]
 
-        print('Max element value: %s' % max(self.element_array[:,2]))
+        # print('Max element value: %s' % max(self.element_array[:,2]))
 
         # print(self.element_array[300][1])
         # print(self.spectral.elemdata.els[self.elemIndex].speclo[1])
@@ -1030,8 +1068,8 @@ class Ui(QtWidgets.QMainWindow):
         self.elemIndex = self.elementDeets[self.buttonIndex][3]
 
         print('Button name is %s' % str(self.buttonClicked))
-        print('Button index is %s' % self.buttonIndex)
-        print('Element index is %s' % self.elemIndex)
+        # print('Button index is %s' % self.buttonIndex)
+        # print('Element index is %s' % self.elemIndex)
         print('Element number is %s' % self.elemNumber)
 
         if self.elementDeets[self.buttonIndex][1] < 2:
@@ -1106,7 +1144,7 @@ class Ui(QtWidgets.QMainWindow):
             direct_file_name = dlg.selectedFiles()
 
             if direct_file_name[0].endswith('.vid'):
-                print(direct_file_name)
+                # print(direct_file_name)
                 direct_path = os.path.split(direct_file_name[0])[0]
                 direct_name = os.path.split(direct_file_name[0])[1]
 
@@ -1142,7 +1180,7 @@ class Ui(QtWidgets.QMainWindow):
 
         # Display time
         self.dt = unixTime2Date(self.direct_frame.ts, self.direct_frame.tu, dt_obj=False)
-        print(self.dt)
+        # print(self.dt)
         # self.dt = str(self.dt)
         self.DirectTime_label.setText(' at ' + str(self.dt[3]) + ':' + str(self.dt[4]) + \
          ':' + str(self.dt[5]) + '.' + str(self.dt[6]) + 'UT on ' + str(self.dt[0]) + '/' + \
@@ -1151,7 +1189,7 @@ class Ui(QtWidgets.QMainWindow):
 
         # Display frame number
         # self.DirectFrame_label.setNum(self.direct_currentframe)
-        print(self.direct_currentframe)
+
         self.DirectFrame_label.setText('Frame # ' + str(self.direct_currentframe))
         # self.DirectFrame_label.setText('Viewing frame #' + self.direct_currentframe)
         self.update()
@@ -1246,7 +1284,7 @@ class Ui(QtWidgets.QMainWindow):
 
         if dlg.exec():
             scale_file_name = dlg.selectedFiles()
-            print(scale_file_name)
+            # print(scale_file_name)
         
         # Scale plate file path
         scale_dir_path = "."
@@ -1303,7 +1341,7 @@ class Ui(QtWidgets.QMainWindow):
             flat_file_name = dlg.selectedFiles()
             
             if flat_file_name[0].endswith('.png'):
-                print(flat_file_name[0])
+                # print(flat_file_name[0])
                
                 # Load the flat image
                 flat_img = loadImage(flat_file_name[0], -1)
@@ -1339,7 +1377,7 @@ class Ui(QtWidgets.QMainWindow):
             spectral_file_name = dlg.selectedFiles()
 
             if spectral_file_name[0].endswith('.vid'):
-                print(spectral_file_name)
+                # print(spectral_file_name)
                 spectral_path = os.path.split(spectral_file_name[0])[0]
                 spectral_name = os.path.split(spectral_file_name[0])[1]
 
@@ -1490,7 +1528,20 @@ class Ui(QtWidgets.QMainWindow):
             self.spectral_roi.addScaleHandle([1,0.5], [0,0])
             self.spectral_roi.addTranslateHandle([0,0.5],  [0,0])
             self.angle = self.spectral_roi.angle()
-            
+    
+    def autoTrackDirect(self):
+        
+        # Set frame to be displayed
+        print(self.direct_currentframe)
+        # self.direct_frame = self.direct_vid.frames[self.direct_currentframe]
+        # self.direct_frame_img = self.direct_frame.img_data
+
+        dimage = self.direct_vid.frames[23].img_data
+
+        plt.imshow(dimage)
+        plt.show()
+
+
     def autoPickDirect(self):
 
         dimage = self.direct_frame_img
@@ -1547,6 +1598,15 @@ class Ui(QtWidgets.QMainWindow):
                         parent = self.direct_image, \
                             pen = None, movable = False, \
                             rotatable = False, resizable = False, removable = True)
+        else:
+            self.direct_roi.deleteLater()
+            self.direct_roi = None
+            self.direct_roi = pg.CircleROI((extractions[0,0]-30,extractions[0,1]-30), size = (60, 60), angle = 0, \
+                maxBounds = None, snapSize = 1, scaleSnap = False, \
+                    translateSnap = False, rotateSnap = False, \
+                        parent = self.direct_image, \
+                            pen = None, movable = False, \
+                            rotatable = False, resizable = False, removable = True)
             # self.direct_roi.addRotateHandle([0.5,0.5], [0.25, 0.25])
             # self.direct_roi.addScaleHandle([1,0.5], [0,0])
             # self.direct_roi.addTranslateHandle([0,0.5],  [0,0])
@@ -1561,7 +1621,6 @@ class Ui(QtWidgets.QMainWindow):
         # plt.imshow(diff)
 
         # plt.show()
-
 
 
     def autoPickROI(self):
@@ -1703,9 +1762,9 @@ class Ui(QtWidgets.QMainWindow):
         # Define spectral background array, each entry a float
         self.spectral_background = self.spectral_background.astype(np.float64)
 
-        plt.figure()
-        plt.imshow(self.spectral_background)
-        plt.show()
+        # plt.figure()
+        # plt.imshow(self.spectral_background)
+        # plt.show()
 
     # Makes spectral background appear in a new window
     def showSpectralBackground(self):
@@ -1721,8 +1780,8 @@ class Ui(QtWidgets.QMainWindow):
         self.checkSpectralBackground()
 
         # Display background in a pop-up window
-        plt.imshow(self.spectral_background, cmap = 'gray')
-        plt.show()
+        # plt.imshow(self.spectral_background, cmap = 'gray')
+        # plt.show()
 
     # Check selected region
     def checkSpectralRegion(self):
@@ -1756,8 +1815,8 @@ class Ui(QtWidgets.QMainWindow):
         self.checkSpectralRegion()        
         
         # Display region in a pop-up window
-        plt.imshow(self.spectral_array.T,cmap = 'gray')
-        plt.show()
+        # plt.imshow(self.spectral_array.T,cmap = 'gray')
+        # plt.show()
 
     # Clear ROI box
     def clearSpectralROI(self):
@@ -2077,9 +2136,10 @@ class Ui(QtWidgets.QMainWindow):
 
         # Set spectral profile
         spectral_profile = np.sum(self.spectral_array, axis = 1)
-        print(self.spectral_array.shape)
+        # print(self.spectral_array.shape)
 
         # Init array for the scaled profile
+        global scaled_spectral_profile
         scaled_spectral_profile = np.zeros(len(spectral_profile))
 
         # Scaling parameters
@@ -2104,6 +2164,7 @@ class Ui(QtWidgets.QMainWindow):
 
         # Create the plot
         self.Plot.plot(scaled_spectral_profile, spectral_profile, pen = pen)
+        self.Plot.setXRange(np.min(scaled_spectral_profile),np.max(scaled_spectral_profile))
 
     # clear the spectrum
     def clearSpec(self,event):
@@ -2173,7 +2234,7 @@ class Ui(QtWidgets.QMainWindow):
     # Modified for spinner - MJM
     def updateExtinctionValue(self):
         self.extinctionValue = self.Extinction_rollbox.value()
-        print(self.extinctionValue)
+        print('Updated extinction vale: %f' % self.extinctionValue)
 
     # def addRoll(self, increment=0.1):
     #     """ add increment to the current roll value """
@@ -2220,7 +2281,7 @@ class Ui(QtWidgets.QMainWindow):
     # Modified for spinner - MJM
     def updateRollValue(self):
         rollValue = self.Roll_rollbox.value()
-        print(rollValue)
+        # print(rollValue)
 
 
     # def addLmm(self, increment=0.1):
@@ -2268,7 +2329,7 @@ class Ui(QtWidgets.QMainWindow):
     # Modified for spinner - MJM
     def updateLmmValue(self):
         lmmValue = self.Lmm_rollbox.value()
-        print(lmmValue)
+        # print(lmmValue)
 
 
     # def addHighTemp(self, increment=100):
@@ -2316,7 +2377,7 @@ class Ui(QtWidgets.QMainWindow):
     # Modified for spinner - MJM
     def updateHighTempValue(self):
         highTempValue = self.HighTemp_rollbox.value()
-        print(highTempValue)
+        # print(highTempValue)
 
 
     # def addLowTemp(self, increment=100):
@@ -2364,7 +2425,7 @@ class Ui(QtWidgets.QMainWindow):
     # Modified for spinner - MJM
     def updateLowTempValue(self):
         lowTempValue = self.LowTemp_rollbox.value()
-        print(lowTempValue)
+        # print(lowTempValue)
 
 
     # def addSigma(self, increment=0.1):
@@ -2412,7 +2473,7 @@ class Ui(QtWidgets.QMainWindow):
     def updateSigmaValue(self):
         # self.sigmaValue = self.Sigma_rollbox.value()
         self.spectral.changeBroadening(self.Sigma_rollbox.value())
-        print(self.Sigma_rollbox.value())
+        # print(self.Sigma_rollbox.value())
 
     def updateHot2WarmRatio(self):
         self.spectral.changeHot2WarmRatio(self.Hot2WarmRatio_rollbox.value())

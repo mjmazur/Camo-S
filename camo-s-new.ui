@@ -285,7 +285,7 @@
      <enum>QTabWidget::East</enum>
     </property>
     <property name="currentIndex">
-     <number>0</number>
+     <number>1</number>
     </property>
     <property name="documentMode">
      <bool>false</bool>
@@ -362,6 +362,13 @@
        </item>
        <item>
         <widget class="QLabel" name="label_13">
+         <property name="font">
+          <font>
+           <weight>75</weight>
+           <italic>false</italic>
+           <bold>true</bold>
+          </font>
+         </property>
          <property name="text">
           <string>Data</string>
          </property>
@@ -447,6 +454,12 @@
              <width>16777215</width>
              <height>18</height>
             </size>
+           </property>
+           <property name="font">
+            <font>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
            </property>
            <property name="text">
             <string>Transform</string>
@@ -657,6 +670,12 @@
              <height>18</height>
             </size>
            </property>
+           <property name="font">
+            <font>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
            <property name="text">
             <string>Direct Camera</string>
            </property>
@@ -755,6 +774,12 @@
              <width>16777215</width>
              <height>18</height>
             </size>
+           </property>
+           <property name="font">
+            <font>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
            </property>
            <property name="text">
             <string>Spectral Camera</string>
@@ -862,6 +887,12 @@
              <height>18</height>
             </size>
            </property>
+           <property name="font">
+            <font>
+             <weight>75</weight>
+             <bold>true</bold>
+            </font>
+           </property>
            <property name="text">
             <string>Checks</string>
            </property>
@@ -921,6 +952,12 @@
        </item>
        <item>
         <widget class="QLabel" name="label_14">
+         <property name="font">
+          <font>
+           <weight>75</weight>
+           <bold>true</bold>
+          </font>
+         </property>
          <property name="text">
           <string>Plot</string>
          </property>
@@ -1140,7 +1177,7 @@
          <item>
           <widget class="QDoubleSpinBox" name="Scale_rollbox">
            <property name="decimals">
-            <number>0</number>
+            <number>1</number>
            </property>
            <property name="maximum">
             <double>100.000000000000000</double>
@@ -1213,6 +1250,12 @@
              <width>40</width>
              <height>16777215</height>
             </size>
+           </property>
+           <property name="font">
+            <font>
+             <weight>50</weight>
+             <bold>false</bold>
+            </font>
            </property>
            <property name="styleSheet">
             <string notr="true">background-color: rgb(255, 255, 255);</string>

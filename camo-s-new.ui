@@ -303,53 +303,13 @@
      <attribute name="title">
       <string>Setup</string>
      </attribute>
-     <widget class="QLineEdit" name="Frame1SpectralEnd_linedit">
-      <property name="geometry">
-       <rect>
-        <x>40</x>
-        <y>900</y>
-        <width>22</width>
-        <height>22</height>
-       </rect>
-      </property>
-     </widget>
-     <widget class="QLineEdit" name="Frame1SpectralStart_linedit">
-      <property name="geometry">
-       <rect>
-        <x>10</x>
-        <y>900</y>
-        <width>22</width>
-        <height>22</height>
-       </rect>
-      </property>
-     </widget>
-     <widget class="QLineEdit" name="Frame2SpectralEnd_linedit">
-      <property name="geometry">
-       <rect>
-        <x>120</x>
-        <y>900</y>
-        <width>22</width>
-        <height>22</height>
-       </rect>
-      </property>
-     </widget>
-     <widget class="QLineEdit" name="Frame2SpectralStart_linedit">
-      <property name="geometry">
-       <rect>
-        <x>90</x>
-        <y>900</y>
-        <width>22</width>
-        <height>22</height>
-       </rect>
-      </property>
-     </widget>
      <widget class="QWidget" name="layoutWidget">
       <property name="geometry">
        <rect>
         <x>5</x>
         <y>10</y>
         <width>174</width>
-        <height>881</height>
+        <height>911</height>
        </rect>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -962,7 +922,7 @@
           </font>
          </property>
          <property name="text">
-          <string>Plot</string>
+          <string>Spectrum</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignCenter</set>
@@ -999,6 +959,16 @@
         </widget>
        </item>
        <item>
+        <widget class="QPushButton" name="CalibrateSpectrum_button">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="text">
+          <string>Calibrate</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QCheckBox" name="checkBox">
          <property name="enabled">
           <bool>false</bool>
@@ -1022,11 +992,6 @@
        </item>
       </layout>
      </widget>
-     <zorder>layoutWidget</zorder>
-     <zorder>Frame1SpectralEnd_linedit</zorder>
-     <zorder>Frame1SpectralStart_linedit</zorder>
-     <zorder>Frame2SpectralEnd_linedit</zorder>
-     <zorder>Frame2SpectralStart_linedit</zorder>
     </widget>
     <widget class="QWidget" name="tab_2">
      <attribute name="title">

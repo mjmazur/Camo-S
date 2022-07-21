@@ -37,6 +37,8 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 
+from calibration import Ui_CalibrationDialog
+
 #################### FROM WMPL ####################
 
 from wmpl.Formats.Vid import readVid
@@ -532,12 +534,19 @@ class Ui(QtWidgets.QMainWindow):
         # Enable mouse click event in the image view widget
         self.direct_image.mousePressEvent = self.getDirectPosition
 
-        #################### SPECTRAL MARKERS ####################
+        #################### DIRECT MARKERS ####################
 
         # Init affine marker on spectral image
         self.direct_markers = pg.ScatterPlotItem()
         self.direct_markers.setData(pxMode=False, symbol='+', size=15, pen='r', brush='r')
         self.direct_imageframe.addItem(self.direct_markers) 
+
+        #################### DIRECT MARKERS ####################
+
+        # Init affine marker on spectral image
+        self.direct_circle = pg.ScatterPlotItem()
+        self.direct_circle.setData(pxMode=False, symbol='o', size=50, pen='w', width=5, brush=None)
+        self.direct_imageframe.addItem(self.direct_circle) 
 
         #################### INITIALIZE PLOT MOUSE #####################
 
@@ -582,23 +591,25 @@ class Ui(QtWidgets.QMainWindow):
 
         #################### INITIALIZE BACKGROUND SETS ####################
 
-        self.Frame1SpectralStart_linedit.insert("0")
-        self.Frame1SpectralEnd_linedit.insert("10")
-        self.Frame2SpectralStart_linedit.insert("50")
-        self.Frame2SpectralEnd_linedit.insert("60")
+        # self.Frame1SpectralStart_linedit.insert("0")
+        # self.Frame1SpectralEnd_linedit.insert("10")
+        # self.Frame2SpectralStart_linedit.insert("50")
+        # self.Frame2SpectralEnd_linedit.insert("60")
 
         #################### SPECTRAL MARKERS ####################
 
         # Init affine marker on spectral image
         self.affine_markers = pg.ScatterPlotItem()
-        self.affine_markers.setPen('r')
-        self.affine_markers.setSymbol('o')
-        self.spectral_imageframe.addItem(self.affine_markers) 
+        # self.affine_markers.setPen('r')
+        # self.affine_markers.setSymbol('o')
+        self.affine_markers.setData(pxMode=False, symbol='o', size=10, pen='r', brush='r')
+        self.spectral_imageframe.addItem(self.affine_markers)
 
         # Init projected affine marker  on  spectral  image
         self.proj_affine_markers = pg.ScatterPlotItem()
-        self.proj_affine_markers.setPen('b')
-        self.proj_affine_markers.setSymbol('o')
+        # self.proj_affine_markers.setPen('b')
+        # self.proj_affine_markers.setSymbol('o')
+        self.affine_markers.setData(pxMode=False, symbol='+', size=10, pen='b', brush='b')
         self.spectral_imageframe.addItem(self.proj_affine_markers)  
         
         ################# LOAD SPECTRAL FLAT ####################
@@ -679,7 +690,9 @@ class Ui(QtWidgets.QMainWindow):
         ################# PLOTTING BUTTONS #################
 
         # Plot the measured spectrum    
-        self.MeasuredSpec_button.clicked.connect(self.plotMeasuredSpec)                     
+        self.MeasuredSpec_button.clicked.connect(self.plotMeasuredSpec)
+        # Calibrate the spectrum
+        self.CalibrateSpectrum_button.clicked.connect(lambda: self.calibrationClicked())              
         # Clear the plot    
         self.Clear_button.clicked.connect(self.clearSpec)
 
@@ -916,12 +929,19 @@ class Ui(QtWidgets.QMainWindow):
     ###############################################################################################
     ###################################### /// FUNCTIONS /// ######################################
     ###############################################################################################
+    def calibrationClicked(self):
+        self.window = QtWidgets.QMainWindow()
+        self.ui = Ui_CalibrationDialog()
+        self.ui.setupUi(self.window)
+        self.window.show()
+
     def mouse_clicked(self, evt):
         vb = self.Plot.plotItem.vb
         scene_coords = evt.scenePos()
         if self.Plot.sceneBoundingRect().contains(scene_coords):
             mouse_point = vb.mapSceneToView(scene_coords)
             print(f'clicked plot X: {mouse_point.x()}, Y: {mouse_point.y()}, event: {evt}')
+            self.ui.CalibX1_label.setText(str(mouse_point.x()))
 
     def plotElement(self, event):
 
@@ -1598,7 +1618,7 @@ class Ui(QtWidgets.QMainWindow):
 
         x2, y2, amplitude, intensity, sigma_y_fitted, sigma_x_fitted = fitPSF(dimage, global_mean, x, y)
 
-        extractions = np.array(list(zip(x2, y2, amplitude, intensity, sigma_x_fitted, sigma_y_fitted)))
+        extractions = np.array(list(zip(x2, y2, amplitude, intensity, sigma_x_fitted, sigma_y_fitted)), dtype=object)
 
         # np.savetxt('detect.csv', extractions, delimiter=',')
 
@@ -1612,23 +1632,24 @@ class Ui(QtWidgets.QMainWindow):
         self.dir_y = extractions[0,1]
 
         self.direct_markers.setData(x = [self.dir_x], y = [self.dir_y])
+        self.direct_circle.setData(x = [self.dir_x], y = [self.dir_y])
 
-        if self.direct_roi is None:
-            self.direct_roi = pg.CircleROI((extractions[0,0]-30,extractions[0,1]-30), size = (60, 60), angle = 0, \
-                maxBounds = None, snapSize = 1, scaleSnap = False, \
-                    translateSnap = False, rotateSnap = False, \
-                        parent = self.direct_image, \
-                            pen = None, movable = False, \
-                            rotatable = False, resizable = False, removable = True)
-        else:
-            self.direct_roi.deleteLater()
-            self.direct_roi = None
-            self.direct_roi = pg.CircleROI((extractions[0,0]-30,extractions[0,1]-30), size = (60, 60), angle = 0, \
-                maxBounds = None, snapSize = 1, scaleSnap = False, \
-                    translateSnap = False, rotateSnap = False, \
-                        parent = self.direct_image, \
-                            pen = None, movable = False, \
-                            rotatable = False, resizable = False, removable = True)
+        # if self.direct_roi is None:
+        #     self.direct_roi = pg.CircleROI((extractions[0,0]-30,extractions[0,1]-30), size = (60, 60), angle = 0, \
+        #         maxBounds = None, snapSize = 1, scaleSnap = False, \
+        #             translateSnap = False, rotateSnap = False, \
+        #                 parent = self.direct_image, \
+        #                     pen = None, movable = False, \
+        #                     rotatable = False, resizable = False, removable = True)
+        # else:
+        #     self.direct_roi.deleteLater()
+        #     self.direct_roi = None
+        #     self.direct_roi = pg.CircleROI((extractions[0,0]-30,extractions[0,1]-30), size = (60, 60), angle = 0, \
+        #         maxBounds = None, snapSize = 1, scaleSnap = False, \
+        #             translateSnap = False, rotateSnap = False, \
+        #                 parent = self.direct_image, \
+        #                     pen = None, movable = False, \
+        #                     rotatable = False, resizable = False, removable = True)
             # self.direct_roi.addRotateHandle([0.5,0.5], [0.25, 0.25])
             # self.direct_roi.addScaleHandle([1,0.5], [0,0])
             # self.direct_roi.addTranslateHandle([0,0.5],  [0,0])
@@ -1751,13 +1772,21 @@ class Ui(QtWidgets.QMainWindow):
         """
         
         # First frame set start
-        self.spectral_background_startframe_beg = int(self.Frame1SpectralStart_linedit.text())
+        # self.spectral_background_startframe_beg = int(self.Frame1SpectralStart_linedit.text())
+        # # First frame set end
+        # self.spectral_background_startframe_end = int(self.Frame1SpectralEnd_linedit.text())
+        # # Last frame set start
+        # self.spectral_background_lastframe_beg = int(self.Frame2SpectralStart_linedit.text())
+        # # Last frame set end
+        # self.spectral_background_lastframe_end = int(self.Frame2SpectralEnd_linedit.text())
+
+        self.spectral_background_startframe_beg = 10
         # First frame set end
-        self.spectral_background_startframe_end = int(self.Frame1SpectralEnd_linedit.text())
+        self.spectral_background_startframe_end = 20
         # Last frame set start
-        self.spectral_background_lastframe_beg = int(self.Frame2SpectralStart_linedit.text())
+        self.spectral_background_lastframe_beg = 50
         # Last frame set end
-        self.spectral_background_lastframe_end = int(self.Frame2SpectralEnd_linedit.text())
+        self.spectral_background_lastframe_end = 60
 
 
         # Define frame range
@@ -2187,6 +2216,7 @@ class Ui(QtWidgets.QMainWindow):
         # Create the plot
         self.Plot.plot(scaled_spectral_profile, spectral_profile, pen = pen)
         self.Plot.setXRange(np.min(scaled_spectral_profile),np.max(scaled_spectral_profile))
+        self.CalibrateSpectrum_button.setEnabled(True)
 
     # clear the spectrum
     def clearSpec(self,event):

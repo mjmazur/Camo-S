@@ -90,7 +90,7 @@ class Ui_CalibrationDialog(object):
         self.CalibX1_label.setText(_translate("CalibrationDialog", "not set"))
         self.CalibX2_label.setText(_translate("CalibrationDialog", "not set"))
         self.pushButton.setText(_translate("CalibrationDialog", "Update Scale"))
-        self.NewScale_label.setText(_translate("CalibrationDialog", "Scaler = N/A"))
+        self.NewScale_label.setText(_translate("CalibrationDialog", "New Scale = N/A"))
         self.CalculateScale_button.setText(_translate("CalibrationDialog", "Calculate"))
 
 

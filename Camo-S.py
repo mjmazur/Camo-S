@@ -711,36 +711,6 @@ class Ui(QtWidgets.QMainWindow):
         self.Sigma_rollbox.valueChanged.connect(lambda: self.updateSigmaValue())
         self.Hot2WarmRatio_rollbox.valueChanged.connect(lambda: self.updateHot2WarmRatio())
 
-        # # extinction coefficient plus/minus/lineedit
-        # self.plusAtExtinct_button.clicked.connect(lambda: self.addExtinction())
-        # self.minusAE_button.clicked.connect(lambda: self.subExtinction())
-        # self.AtExtinct_linedit.editingFinished.connect(lambda: self.updateExtinctionValue())
-
-        # # roll plus/minus/lineedit
-        # self.plusRoll_button.clicked.connect(lambda: self.addRoll())
-        # self.minusRoll_button.clicked.connect(lambda: self.subRoll())
-        # self.Roll_linedit.editingFinished.connect(lambda: self.updateRollValue())
-
-        # # L/mm plus/minus/lineedit
-        # self.plusLmm_button.clicked.connect(lambda: self.addLmm())
-        # self.minusLmm_button.clicked.connect(lambda: self.subLmm())
-        # self.Lmm_linedit.editingFinished.connect(lambda: self.updateLmmValue())
-
-        # # High Temp plus/minus/lineedit
-        # self.plusHighTemp_button.clicked.connect(lambda: self.addHighTemp())
-        # self.minusHighTemp_button.clicked.connect(lambda: self.subHighTemp())
-        # self.HighTemp_linedit.editingFinished.connect(lambda: self.updateHighTempValue())
-
-        # # Low Temp plus/minus/lineedit
-        # self.plusLowTemp_button.clicked.connect(lambda: self.addLowTemp())
-        # self.minusLowTemp_button.clicked.connect(lambda: self.subLowTemp())
-        # self.LowTemp_linedit.editingFinished.connect(lambda: self.updateLowTempValue())
-
-        # # Sigma plus/minus/lineedit
-        # self.plusSigma_button.clicked.connect(lambda: self.addSigma())
-        # self.minusSigma_button.clicked.connect(lambda: self.subSigma())
-        # self.Sigma_linedit.editingFinished.connect(lambda: self.updateSigmaValue())
-        # self.kelem_Fe = spectral_library.GuralSpectral.getElementIndex(self.spectral, 26)
         # Element buttons
 
         self.Na_button.clicked.connect(self.elementButtonClicked)
@@ -936,12 +906,28 @@ class Ui(QtWidgets.QMainWindow):
         self.window.show()
 
     def mouse_clicked(self, evt):
+
         vb = self.Plot.plotItem.vb
         scene_coords = evt.scenePos()
         if self.Plot.sceneBoundingRect().contains(scene_coords):
             mouse_point = vb.mapSceneToView(scene_coords)
             print(f'clicked plot X: {mouse_point.x()}, Y: {mouse_point.y()}, event: {evt}')
-            self.ui.CalibX1_label.setText(str(mouse_point.x()))
+            self.statusBar.showMessage(f'clicked plot X: {mouse_point.x()}, Y: {mouse_point.y()}')
+
+            try:
+                if self.ui.CalibX1_label.text() == 'not set':
+                    global num_clicks
+                    num_clicks = 0
+                if num_clicks == 0:
+                    self.ui.CalibX1_label.setText(str(mouse_point.x()))
+                    self.statusBar.showMessage('Setting X1 to %f' % mouse_point.x())
+                    num_clicks = 1
+                else:
+                    self.ui.CalibX2_label.setText(str(mouse_point.x()))
+                    self.statusBar.showMessage('Setting X2 to %f' % mouse_point.x())
+                    num_clicks = 0
+            except:
+                pass
 
     def plotElement(self, event):
 

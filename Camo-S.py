@@ -914,7 +914,7 @@ class Ui(QtWidgets.QMainWindow):
         w2 = int(self.ui.Wave2_edit.text())
         x1 = float(self.ui.CalibX1_label.text())
         x2 = float(self.ui.CalibX2_label.text())
-        new_scale = np.abs((w2-w1)/(x2-x1))
+        new_scale = old_scale / np.abs((w2-w1)/(x2-x1))
         self.ui.NewScale_label.setText('Scaler = %.2f' % new_scale)
 
     def mouse_clicked(self, evt):

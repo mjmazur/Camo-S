@@ -903,7 +903,19 @@ class Ui(QtWidgets.QMainWindow):
         self.window = QtWidgets.QMainWindow()
         self.ui = Ui_CalibrationDialog()
         self.ui.setupUi(self.window)
+        self.ui.CalculateScale_button.clicked.connect(self.calculateScale)
         self.window.show()
+
+    def calculateScale(self):
+        print(self.ui.Wave1_edit.text())
+        print('Yay!')
+        old_scale = 2.85
+        w1 = int(self.ui.Wave1_edit.text())
+        w2 = int(self.ui.Wave2_edit.text())
+        x1 = float(self.ui.CalibX1_label.text())
+        x2 = float(self.ui.CalibX2_label.text())
+        new_scale = np.abs((w2-w1)/(x2-x1))
+        self.ui.NewScale_label.setText('Scaler = %.2f' % new_scale)
 
     def mouse_clicked(self, evt):
 

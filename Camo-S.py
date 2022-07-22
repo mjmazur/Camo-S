@@ -904,6 +904,7 @@ class Ui(QtWidgets.QMainWindow):
         self.ui = Ui_CalibrationDialog()
         self.ui.setupUi(self.window)
         self.ui.CalculateScale_button.clicked.connect(self.calculateScale)
+        self.ui.UpdateScale_button.clicked.connect(self.updateScale)
         self.window.show()
 
     def calculateScale(self):
@@ -915,7 +916,14 @@ class Ui(QtWidgets.QMainWindow):
         x1 = float(self.ui.CalibX1_label.text())
         x2 = float(self.ui.CalibX2_label.text())
         new_scale = old_scale / np.abs((w2-w1)/(x2-x1))
-        self.ui.NewScale_label.setText('New Scale = %.2f nm/pixel' % new_scale)
+        self.ui.NewScale_rollbox.setValue(new_scale)
+        # self.SpectralScale_rollbox.setValue(new_scale)
+        self.ui.UpdateScale_button.setEnabled(True)
+
+    def updateScale(self):
+        self.SpectralScale_rollbox.setValue(self.ui.NewScale_rollbox.value())
+        self.clearSpec
+        self.plotMeasuredSpec
 
     def mouse_clicked(self, evt):
 
@@ -2192,7 +2200,8 @@ class Ui(QtWidgets.QMainWindow):
         scaled_spectral_profile = np.zeros(len(spectral_profile))
 
         # Scaling parameters
-        s = 2.85 # px/nm
+        # s = 2.85 # px/nm
+        s = self.SpectralScale_rollbox.value() # px/nm
         nm0 = 410 # nm 
 
         # Calculate wavelength values as they correspond to each pixel

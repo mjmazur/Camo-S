@@ -922,8 +922,8 @@ class Ui(QtWidgets.QMainWindow):
 
     def updateScale(self):
         self.SpectralScale_rollbox.setValue(self.ui.NewScale_rollbox.value())
-        self.clearSpec
-        self.plotMeasuredSpec
+        # self.clearSpec()
+        self.plotMeasuredSpec()
 
     def mouse_clicked(self, evt):
 
@@ -2176,7 +2176,7 @@ class Ui(QtWidgets.QMainWindow):
         y = m*self.x + b1
 
     # plot the measured spectrum
-    def plotMeasuredSpec(self, event):
+    def plotMeasuredSpec(self):
         """
         Runs background and region  of interest calculations.
         Converts spectrum from pixels to nanometers. 
@@ -2191,8 +2191,46 @@ class Ui(QtWidgets.QMainWindow):
         # Set pen  
         pen = pg.mkPen(width = 1)
 
+        # Shear spectral array
+        zoom = 5
+        roi_width = zoom * np.shape(self.spectral_array)[1]
+        shear_angle = self.SpectralShear_rollbox.value() # degrees
+        # shear =  (roi_width * np.tan(np.radians(shear_angle))) # zoomed pixels
+        shear = int(zoom*self.SpectralShear_rollbox.value())
+
+        print('Shear: %d' % shear)
+
+        spectral_array_zoomed = scipy.ndimage.zoom(self.spectral_array, zoom)
+
+        spectral_array_sheared = np.zeros((np.shape(spectral_array_zoomed)[0]+int(np.round(2*shear)), np.shape(spectral_array_zoomed)[1]))
+
+        for j in range(np.shape(spectral_array_zoomed)[1]):
+            for i in range(np.shape(spectral_array_zoomed)[0]):
+                try:
+                    # spectral_array_sheared[i,j] = spectral_array_zoomed[i-(i-int(np.round((shear/roi_width/2)))),j]
+                    if shear >= 0:
+                        # spectral_array_sheared[i,j] = spectral_array_zoomed[i+(int(np.round(shear - j*(shear/(roi_width))))),j]
+                        spectral_array_sheared[i,j] = spectral_array_zoomed[i+(shear - j*int(shear/(roi_width))),j]
+                    else:
+                        # spectral_array_sheared[i+(int(np.round(-shear + j*(-shear/(roi_width))))),j] = spectral_array_zoomed[i,j]
+                        spectral_array_sheared[i+(-shear + j*int(-shear/(roi_width))),j] = spectral_array_zoomed[i,j]
+                except:
+                    pass
+        spectral_array_sheared = np.roll(spectral_array_sheared, int(np.round(shear/2)))
+        spectral_array_unzoomed = scipy.ndimage.zoom(spectral_array_sheared[np.abs(int(np.round(shear))):np.shape(spectral_array_sheared)[0]-np.abs(int(np.round(shear)))], 1/zoom)
+
+        print(np.shape(spectral_array_zoomed))
+        print(np.shape(spectral_array_unzoomed))
+        # print(np.shape(spectral_array_sheared[shear:np.shape(spectral_array_sheared)[0]-shear]))
+        print(np.shape(self.spectral_array))
+        print(int(np.round(shear)))
+        print(np.shape(spectral_array_sheared)[0])
+        print(np.shape(spectral_array_sheared)[0]-np.abs(int(np.round(shear))))
+        # print(spectral_array_sheared[0])
+
         # Set spectral profile
-        spectral_profile = np.sum(self.spectral_array, axis = 1)
+        # spectral_profile = np.sum(self.spectral_array, axis = 1)
+        spectral_profile = np.sum(spectral_array_unzoomed, axis=1)
         # print(self.spectral_array.shape)
 
         # Init array for the scaled profile
@@ -2226,7 +2264,7 @@ class Ui(QtWidgets.QMainWindow):
         self.CalibrateSpectrum_button.setEnabled(True)
 
     # clear the spectrum
-    def clearSpec(self,event):
+    def clearSpec(self):
         self.Plot.clear()
 
 

@@ -743,44 +743,10 @@ class Ui(QtWidgets.QMainWindow):
         # initialize the GuralSpectral object
         self.spectral = spectral_library.GuralSpectral(10000, 4500, None, None, None, None)
 
-        # initial setup, that isn't quite clear and will require specification of files and settings and such
-        # The config file looks something like the following (the variable name are the ones on the right)
-        # Version                             =    1.00       spectral.spconfig.version
-        # Spectral Order m for Resp/Extn      =      +1       spectral.spconfig.order4spcalib
-        # Plus/Minus # Integration Rows       =       4       spectral.spconfig.rowdelta
-        # Min Calib Wavelength (nm)           =   350.0       spectral.spconfig.min_cal_wavelength_nm
-        # Max Calib Wavelength (nm)           =   650.0       spectral.spconfig.max_cal_wavelength_nm
-        # Step Wavelength (nm)                =     0.6       spectral.spconfig.del_wavelength_nm
-        # Min Fitting Wavelength (nm)         =   350.0       spectral.spconfig.min_fit_wavelength_nm
-        # Max Fitting Wavelength (nm)         =   650.0       spectral.spconfig.max_fit_wavelength_nm
-        # Min Bandwidth to use Spectrum (nm)  =   200.0       spectral.spconfig.minspac_wavelength_nm
-        # Gauss Smoothing Kernel sigma (nm)   =    20.0       spectral.spconfig.smooth_bandwidth_nm
-        # Faintest Star to process (mV)       =     4.5       spectral.spconfig.faintest_star_vmag
-        # Airmass Break Pt Respons/Extinct    =     1.5       airmass_limit
-        # Fading memory coef                  =    16.0       fading_coef
-        # Coincidence time tolerance (sec)    =    60.0       coin_time_tolerance
-        # Min low excitation temperature (K)  =  3000.0       min_lo_exc_temp
-        # Max low excitation temperature (K)  =  6500.0       max_lo_exc_temp
-        # Step low excitation temperature (K) =    10.0       step_lo_exc_temp
-        # Nominal low excitation temp (K)     =  4500.0       nominal_lo_exc_temp
-        # Nominal high excitation temp (K)    = 10000.0       nominal_hi_exc_temp
-        # Nominal broadening sigma (nm)       =     1.5       nominal_sigma0
-        # Grating normal to look angle (deg)  =     8.0       grating_offnormal
-        # Default grating roll (deg)          =     0.0       default_roll_angle
-        # Default grating pitch (deg)         =     0.0       default_pitch_angle
-        # Default grating yaw (deg)           =     0.0       default_yaw_deg
-        # Default electron density (m^-3)     = 1.0e+13       default_ne
-        # Default hot to warm plasma ratio    = 1.0e-04       default_hot2warm
-        # Number of Grating Cameras           =       1       ncams_grating
-
         noise_multiplier = 0.0 # 0 = no noise, 0.1 = defaults
 
         spectral_library.readSpectralConfig(self.spectral)
         spectral_library.allocMemory(self.spectral)
-
-        # print("Version: %s" % self.spectral.spconfig.version)
-        # print("Spectral order: %s" % self.spectral.spconfig.order4spcalib)
-        # print('Nominal low excitation temperature: %s' % self.spectral.spconfig.nominal_lo_exc_temp)
 
         # Assign camera numbers to the grating structure
         for i in range(spectral_library.MAXGRATINGS):
@@ -792,13 +758,6 @@ class Ui(QtWidgets.QMainWindow):
 
         spectral_library.readSpectralCALFile(self.spectral)
         spectral_library.loadElementsData(self.spectral)
-
-        # Testing how to access element info after loading
-        # print('test')
-        # print(self.spectral.elemdata.nneutrals)
-        # print(self.spectral.elemdata.neutral_index[36])
-        # print(self.spectral.elemdata.els[0])
-        # print(str(self.spectral.elemdata.els[1].element_filename))
 
         # Update controls based on config
         self.SpectralConfigVersion_label.setText(str(self.spectral.spconfig.version))
@@ -894,6 +853,8 @@ class Ui(QtWidgets.QMainWindow):
         #========== Set user adjustable values in the elemdata structure to their starting defaults
         #              such as sigma, temperatures, electron density, hot-to-warm, airmass factor
         spectral_library.adjustableParametersDefaults(self.spectral)
+
+        self.PlottedSpectrumNumber = 0
 
 
     ###############################################################################################
@@ -2189,49 +2150,36 @@ class Ui(QtWidgets.QMainWindow):
         self.projectAffine()
         
         # Set pen  
-        pen = pg.mkPen(width = 1)
+        if self.PlottedSpectrumNumber == 0:
+            pen = pg.mkPen(width = 2)
+        else:
+            pen = pg.mkPen(pg.intColor(self.PlottedSpectrumNumber-1,6), width = 1)
+            if self.PlottedSpectrumNumber == 6:
+                self.PlottedSpectrumNumber = 0
+        self.PlottedSpectrumNumber += 1
 
         # Shear spectral array
-        zoom = 5
-        roi_width = zoom * np.shape(self.spectral_array)[1]
-        shear_angle = self.SpectralShear_rollbox.value() # degrees
-        # shear =  (roi_width * np.tan(np.radians(shear_angle))) # zoomed pixels
-        shear = int(zoom*self.SpectralShear_rollbox.value())
+        zoom = 10
+        shear = int(self.SpectralShear_rollbox.value())
 
-        print('Shear: %d' % shear)
+        spectral_array_zoomed = scipy.ndimage.zoom(self.spectral_array, (1,zoom))
+        roi_w = np.shape(spectral_array_zoomed)[1]
 
-        spectral_array_zoomed = scipy.ndimage.zoom(self.spectral_array, zoom)
+        spectral_array_sheared = np.zeros((np.shape(spectral_array_zoomed)[0], np.shape(spectral_array_zoomed)[1]))
 
-        spectral_array_sheared = np.zeros((np.shape(spectral_array_zoomed)[0]+int(np.round(2*shear)), np.shape(spectral_array_zoomed)[1]))
+        for i in range(np.shape(spectral_array_zoomed)[1]):
+            spectral_array_sheared[:,i] = np.roll(spectral_array_zoomed[:,i],int((shear-i*shear/roi_w)))
 
-        for j in range(np.shape(spectral_array_zoomed)[1]):
-            for i in range(np.shape(spectral_array_zoomed)[0]):
-                try:
-                    # spectral_array_sheared[i,j] = spectral_array_zoomed[i-(i-int(np.round((shear/roi_width/2)))),j]
-                    if shear >= 0:
-                        # spectral_array_sheared[i,j] = spectral_array_zoomed[i+(int(np.round(shear - j*(shear/(roi_width))))),j]
-                        spectral_array_sheared[i,j] = spectral_array_zoomed[i+(shear - j*int(shear/(roi_width))),j]
-                    else:
-                        # spectral_array_sheared[i+(int(np.round(-shear + j*(-shear/(roi_width))))),j] = spectral_array_zoomed[i,j]
-                        spectral_array_sheared[i+(-shear + j*int(-shear/(roi_width))),j] = spectral_array_zoomed[i,j]
-                except:
-                    pass
-        spectral_array_sheared = np.roll(spectral_array_sheared, int(np.round(shear/2)))
-        spectral_array_unzoomed = scipy.ndimage.zoom(spectral_array_sheared[np.abs(int(np.round(shear))):np.shape(spectral_array_sheared)[0]-np.abs(int(np.round(shear)))], 1/zoom)
+        spectral_array_sheared = np.roll(spectral_array_sheared, int(np.round(-shear/2)), axis=0)
+        spectral_array_unzoomed = scipy.ndimage.zoom(spectral_array_sheared, (1,1/zoom))
 
-        print(np.shape(spectral_array_zoomed))
-        print(np.shape(spectral_array_unzoomed))
-        # print(np.shape(spectral_array_sheared[shear:np.shape(spectral_array_sheared)[0]-shear]))
-        print(np.shape(self.spectral_array))
-        print(int(np.round(shear)))
-        print(np.shape(spectral_array_sheared)[0])
-        print(np.shape(spectral_array_sheared)[0]-np.abs(int(np.round(shear))))
-        # print(spectral_array_sheared[0])
+        px = 1/plt.rcParams['figure.dpi']  # pixel in inches
+        plt.subplots(figsize=(676*px, 100*px))
+        plt.imshow(spectral_array_unzoomed.T)
+        plt.show()
 
         # Set spectral profile
-        # spectral_profile = np.sum(self.spectral_array, axis = 1)
         spectral_profile = np.sum(spectral_array_unzoomed, axis=1)
-        # print(self.spectral_array.shape)
 
         # Init array for the scaled profile
         global scaled_spectral_profile
@@ -2265,6 +2213,7 @@ class Ui(QtWidgets.QMainWindow):
 
     # clear the spectrum
     def clearSpec(self):
+        self.PlottedSpectrumNumber = 0
         self.Plot.clear()
 
 

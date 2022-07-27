@@ -365,16 +365,16 @@
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="pushButton_19">
+        <widget class="QPushButton" name="UploadSpectralFlat_button">
          <property name="text">
-          <string>Load Spectral Bias</string>
+          <string>Load Spectral Flat</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="UploadSpectralFlat_button">
+        <widget class="QPushButton" name="pushButton_19">
          <property name="text">
-          <string>Load Spectral Flat</string>
+          <string>Load Spectral Bias</string>
          </property>
         </widget>
        </item>
@@ -834,6 +834,9 @@
            <property name="wrapping">
             <bool>true</bool>
            </property>
+           <property name="minimum">
+            <number>-300</number>
+           </property>
            <property name="maximum">
             <number>300</number>
            </property>
@@ -995,6 +998,28 @@
          </property>
          <property name="text">
           <string>Calibrate</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="SetReference_button">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="text">
+          <string>Set Reference</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="autoDefault">
+          <bool>false</bool>
+         </property>
+         <property name="default">
+          <bool>false</bool>
+         </property>
+         <property name="flat">
+          <bool>false</bool>
          </property>
         </widget>
        </item>

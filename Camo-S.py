@@ -692,9 +692,12 @@ class Ui(QtWidgets.QMainWindow):
         # Plot the measured spectrum    
         self.MeasuredSpec_button.clicked.connect(self.plotMeasuredSpec)
         # Calibrate the spectrum
-        self.CalibrateSpectrum_button.clicked.connect(lambda: self.calibrationClicked())              
+        self.CalibrateSpectrum_button.clicked.connect(lambda: self.calibrationClicked())  
+        # Set reference spectrum
+        self.SetReference_button.clicked.connect(self.setReference)            
         # Clear the plot    
         self.Clear_button.clicked.connect(self.clearSpec)
+        #MJM
 
 
         #################### Elemental Abundance Buttons #################
@@ -2210,6 +2213,10 @@ class Ui(QtWidgets.QMainWindow):
         self.Plot.plot(scaled_spectral_profile, spectral_profile, pen = pen)
         self.Plot.setXRange(np.min(scaled_spectral_profile),np.max(scaled_spectral_profile))
         self.CalibrateSpectrum_button.setEnabled(True)
+        self.SetReference_button.setEnabled(True)
+
+    def setReference(self):
+        self.SetReference_button.setText('Remove Reference')
 
     # clear the spectrum
     def clearSpec(self):

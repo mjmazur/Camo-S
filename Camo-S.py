@@ -859,6 +859,10 @@ class Ui(QtWidgets.QMainWindow):
 
         self.PlottedSpectrumNumber = 0
 
+        self.Scale_label.setText('2.85')
+        self.nm0_label.setText('410.0')
+        self.nm0_edit.setText('410.0')
+
 
     ###############################################################################################
     ###################################### /// FUNCTIONS /// ######################################
@@ -869,7 +873,16 @@ class Ui(QtWidgets.QMainWindow):
         self.ui.setupUi(self.window)
         self.ui.CalculateScale_button.clicked.connect(self.calculateScale)
         self.ui.UpdateScale_button.clicked.connect(self.updateScale)
+        self.ui.nm0Set_button.clicked.connect(self.nm0Set)
         self.window.show()
+
+    def nm0Set(self):
+        # nm0 =int(self.ui.nm0_edit.text())
+        self.nm0_label.setText(self.ui.nm0_edit.text())
+        self.nm0_edit.setText(self.ui.nm0_edit.text())
+        print('Hey')
+        self.clearSpec()
+        self.plotMeasuredSpec()
 
     def calculateScale(self):
         print(self.ui.Wave1_edit.text())
@@ -881,12 +894,16 @@ class Ui(QtWidgets.QMainWindow):
         x2 = float(self.ui.CalibX2_label.text())
         new_scale = old_scale / np.abs((w2-w1)/(x2-x1))
         self.ui.NewScale_rollbox.setValue(new_scale)
+        nm0 = float(self.ui.nm0_edit.text())
         # self.SpectralScale_rollbox.setValue(new_scale)
         self.ui.UpdateScale_button.setEnabled(True)
 
     def updateScale(self):
         self.SpectralScale_rollbox.setValue(self.ui.NewScale_rollbox.value())
         # self.clearSpec()
+        self.nm0_label.setText(self.ui.nm0_edit.text())
+        self.nm0_edit.setText(self.ui.nm0_edit.text())
+        self.Scale_label.setText(self.ui.NewScale_rollbox.value())
         self.plotMeasuredSpec()
 
     def mouse_clicked(self, evt):
@@ -1310,6 +1327,7 @@ class Ui(QtWidgets.QMainWindow):
         self.affine_markers.setData(x = [self.hu], y = [self.hv])
 
     def updateTransform(self):
+        self.nm0_label.setText(self.nm0_edit.text())
         deltaX = int(self.DeltaX_edit.text())
         deltaY = int(self.DeltaY_edit.text())
         self.hu, self.hv = plateScaleMap(self.scale, self.dir_x + deltaX, self.dir_y + deltaY)
@@ -2177,9 +2195,9 @@ class Ui(QtWidgets.QMainWindow):
         spectral_array_unzoomed = scipy.ndimage.zoom(spectral_array_sheared, (1,1/zoom))
 
         px = 1/plt.rcParams['figure.dpi']  # pixel in inches
-        plt.subplots(figsize=(676*px, 100*px))
-        plt.imshow(spectral_array_unzoomed.T)
-        plt.show()
+        # plt.subplots(figsize=(676*px, 100*px))
+        # plt.imshow(spectral_array_unzoomed.T)
+        # plt.show()
 
         # Set spectral profile
         spectral_profile = np.sum(spectral_array_unzoomed, axis=1)
@@ -2191,7 +2209,7 @@ class Ui(QtWidgets.QMainWindow):
         # Scaling parameters
         # s = 2.85 # px/nm
         s = self.SpectralScale_rollbox.value() # px/nm
-        nm0 = 410 # nm 
+        nm0 = float(self.nm0_edit.text()) # nm 
 
         # Calculate wavelength values as they correspond to each pixel
         for i in range(len(scaled_spectral_profile)):

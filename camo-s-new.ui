@@ -492,7 +492,7 @@
          <item>
           <widget class="QLabel" name="label_41">
            <property name="text">
-            <string>angle</string>
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:9pt;&quot;&gt;λ&lt;/span&gt;&lt;span style=&quot; font-size:9pt; vertical-align:sub;&quot;&gt;0&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
            </property>
            <property name="alignment">
             <set>Qt::AlignCenter</set>
@@ -556,9 +556,9 @@
           </spacer>
          </item>
          <item>
-          <widget class="QLineEdit" name="lineEdit">
+          <widget class="QLineEdit" name="nm0_edit">
            <property name="text">
-            <string>0</string>
+            <string>410.0</string>
            </property>
            <property name="alignment">
             <set>Qt::AlignCenter</set>
@@ -1999,6 +1999,71 @@
     </property>
     <property name="text">
      <string>TextLabel</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="nm0_label">
+    <property name="geometry">
+     <rect>
+      <x>1001</x>
+      <y>337</y>
+      <width>41</width>
+      <height>18</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>410</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="Scale_label">
+    <property name="geometry">
+     <rect>
+      <x>1130</x>
+      <y>337</y>
+      <width>41</width>
+      <height>18</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>2.85</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_44">
+    <property name="geometry">
+     <rect>
+      <x>965</x>
+      <y>331</y>
+      <width>41</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-size:9pt;&quot;&gt;λ&lt;/span&gt;&lt;span style=&quot; font-size:9pt; vertical-align:sub;&quot;&gt;0&lt;/span&gt;&lt;span style=&quot; font-size:9pt;&quot;&gt; =&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_47">
+    <property name="geometry">
+     <rect>
+      <x>1056</x>
+      <y>337</y>
+      <width>71</width>
+      <height>18</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>x Scale =</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label_48">
+    <property name="geometry">
+     <rect>
+      <x>1170</x>
+      <y>337</y>
+      <width>71</width>
+      <height>18</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>nm/pix</string>
     </property>
    </widget>
   </widget>

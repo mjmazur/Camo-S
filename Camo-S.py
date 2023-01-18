@@ -26,6 +26,7 @@ import sys
 import imageio 
 imread = imageio.imread
 import math
+import bz2
 from sklearn.linear_model import RANSACRegressor
 from sklearn.metrics import (r2_score, mean_absolute_error)
 from scipy.signal import savgol_filter
@@ -38,6 +39,8 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 
 from calibration import Ui_CalibrationDialog
+from stellarcalibration import Ui_StellarCalibrationDialog
+from columndensity import Ui_ColumnDensityDialog
 
 #################### FROM WMPL ####################
 
@@ -655,6 +658,8 @@ class Ui(QtWidgets.QMainWindow):
 
         ################# SPECTRAL FILE CONTROL BUTTONS #################
     
+        # Load files from event.txt file
+        self.LoadEventFile_button.clicked.connect(self.loadEventFile)
         # Upload spectral file
         self.UploadSpectral_button.clicked.connect(self.uploadSpectralVid)                  
         # Next spectral frame        
@@ -684,8 +689,9 @@ class Ui(QtWidgets.QMainWindow):
 
         self.AutoTrackDirect_button.clicked.connect(self.autoTrackDirect)
 
-        ##### Flat
+        ################# SpectralFlat
         self.UploadSpectralFlat_button.clicked.connect(self.uploadSpectralFlat)
+        self.AutoSpectralFlat_button.clicked.connect(self.autoSpectralFlat)
 
         ################# PLOTTING BUTTONS #################
 
@@ -731,17 +737,23 @@ class Ui(QtWidgets.QMainWindow):
         self.WarmTempOn_button.setCheckable(True)
         self.Ions_button.setCheckable(True)
         self.Neutral_button.setCheckable(True)
-        self.Respon_button.setCheckable(True)
-        self.Extinction_button.setCheckable(True)
+        # self.Responsivity_check.setCheckable(True)
+        # self.Extinction_check.setCheckable(True)
 
         self.HotTempOn_button.clicked.connect(lambda: self.hotTempToggle())
+        self.HotTempOn_button.toggled.connect(self.refreshPlot)
         self.WarmTempOn_button.clicked.connect(lambda: self.warmTempToggle())
+        self.WarmTempOn_button.toggled.connect(self.refreshPlot)
         self.Ions_button.clicked.connect(lambda: self.ionsToggle())
         self.Neutral_button.clicked.connect(lambda: self.neutralToggle())
-        self.Respon_button.clicked.connect(lambda: self.responsivityToggle())
-        self.Extinction_button.clicked.connect(lambda: self.extinctionToggle())
+        self.Responsivity_check.toggled.connect(lambda: self.responsivityToggle())
+        self.Extinction_check.toggled.connect(lambda: self.extinctionToggle())
 
         self.RefreshPlot_button.clicked.connect(self.refreshPlot)
+        self.CalculateFullSpectrum_button.clicked.connect(self.calculateFullSpectrum)
+
+        # self.HighTemp_rollbox.valueChanged.connect(self.refreshPlot)
+        # self.LowTemp_rollbox.valueChanged.connect(self.refreshPlot)
 
         # initialize the GuralSpectral object
         self.spectral = spectral_library.GuralSpectral(10000, 4500, None, None, None, None)
@@ -763,64 +775,137 @@ class Ui(QtWidgets.QMainWindow):
         spectral_library.loadElementsData(self.spectral)
 
         # Update controls based on config
-        self.SpectralConfigVersion_label.setText(str(self.spectral.spconfig.version))
-        self.SpectralConfigOrder_label.setText(str(self.spectral.spconfig.order4spcalib))
-        self.SpectralConfigRowDelta_label.setText(str(self.spectral.spconfig.rowdelta))
-        self.SpectralConfigMinCalWavelengthNm_label.setText(str(self.spectral.spconfig.min_cal_wavelength_nm))
-        self.SpectralConfigMaxCalWavelengthNm_label.setText(str(self.spectral.spconfig.max_cal_wavelength_nm))
-        self.SpectralConfigDelWavelengthNm_label.setText(str(self.spectral.spconfig.del_wavelength_nm))
-        self.SpectralConfigMinFitWavelengthNm_label.setText(str(self.spectral.spconfig.min_fit_wavelength_nm))
-        self.SpectralConfigMaxFitWavelengthNm_label.setText(str(self.spectral.spconfig.max_fit_wavelength_nm))
-        self.SpectralConfigMinspacWavelengthNm_label.setText(str(self.spectral.spconfig.minspan_wavelength_nm))
-        self.SpectralConfigSmoothBandwidthNm_label.setText(str(self.spectral.spconfig.smooth_bandwidth_nm))
-        self.SpectralConfigFaintestStarMag_label.setText(str(self.spectral.spconfig.faintest_star_vmag))
-        self.SpectralConfigAirmassLimit_label.setText(str(self.spectral.spconfig.airmass_limit))
-        self.SpectralConfigFadingCoef_label.setText(str(self.spectral.spconfig.fading_coef))
-        self.SpectralConfigCoinTimeTolerance_label.setText(str(self.spectral.spconfig.coin_time_tolerance))
-        self.SpectralConfigMinLoExcTemp_label.setText(str(self.spectral.spconfig.min_lo_exc_temp))
-        self.SpectralConfigMaxLoExcTemp_label.setText(str(self.spectral.spconfig.max_lo_exc_temp))
-        self.SpectralConfigStepLoExcTemp_label.setText(str(self.spectral.spconfig.step_lo_exc_temp))
-        self.SpectralConfigNominalLoExcTemp_label.setText(str(self.spectral.spconfig.nominal_lo_exc_temp))
-        self.LowTemp_rollbox.setValue(int(self.spectral.spconfig.nominal_lo_exc_temp))
-        self.SpectralConfigNominalHiExcTemp_label.setText(str(self.spectral.spconfig.nominal_hi_exc_temp))
-        self.HighTemp_rollbox.setValue(int(self.spectral.spconfig.nominal_hi_exc_temp))
-        self.SpectralConfigNominalSigma0_label.setText(str(self.spectral.spconfig.nominal_sigma0))
-        self.Sigma_rollbox.setValue(self.spectral.spconfig.nominal_sigma0)
-        self.SpectralConfigGratingOffnormal_label.setText(str(self.spectral.spconfig.grating_offnormal_deg))
-        self.SpectralConfigDefaultRollAngle_label.setText(str(self.spectral.spconfig.default_roll_deg))
-        self.SpectralConfigDefaultPitchAngle_label.setText(str(self.spectral.spconfig.default_pitch_deg))
-        self.SpectralConfigDefaultYawDeg_label.setText(str(self.spectral.spconfig.default_yaw_deg))
-        self.SpectralConfigDefaultNe_label.setText(str(self.spectral.spconfig.default_ne))
-        self.SpectralConfigDefaultHot2warm_label.setText(str(self.spectral.spconfig.default_hot2warm))
-        self.Hot2WarmRatio_rollbox.setValue(self.spectral.spconfig.default_hot2warm)
-        self.SpectralConfigNcamsGrating_label.setText(str(self.spectral.spconfig.ncams_grating))
+        # self.SpectralConfigVersion_label.setText(str(self.spectral.spconfig.version))
+        # self.SpectralConfigOrder_label.setText(str(self.spectral.spconfig.order4spcalib))
+        # self.SpectralConfigRowDelta_label.setText(str(self.spectral.spconfig.rowdelta))
+        # self.SpectralConfigMinCalWavelengthNm_label.setText(str(self.spectral.spconfig.min_cal_wavelength_nm))
+        # self.SpectralConfigMaxCalWavelengthNm_label.setText(str(self.spectral.spconfig.max_cal_wavelength_nm))
+        # self.SpectralConfigDelWavelengthNm_label.setText(str(self.spectral.spconfig.del_wavelength_nm))
+        # self.SpectralConfigMinFitWavelengthNm_label.setText(str(self.spectral.spconfig.min_fit_wavelength_nm))
+        # self.SpectralConfigMaxFitWavelengthNm_label.setText(str(self.spectral.spconfig.max_fit_wavelength_nm))
+        # self.SpectralConfigMinspacWavelengthNm_label.setText(str(self.spectral.spconfig.minspan_wavelength_nm))
+        # self.SpectralConfigSmoothBandwidthNm_label.setText(str(self.spectral.spconfig.smooth_bandwidth_nm))
+        # self.SpectralConfigFaintestStarMag_label.setText(str(self.spectral.spconfig.faintest_star_vmag))
+        # self.SpectralConfigAirmassLimit_label.setText(str(self.spectral.spconfig.airmass_limit))
+        # self.SpectralConfigFadingCoef_label.setText(str(self.spectral.spconfig.fading_coef))
+        # self.SpectralConfigCoinTimeTolerance_label.setText(str(self.spectral.spconfig.coin_time_tolerance))
+        # self.SpectralConfigMinLoExcTemp_label.setText(str(self.spectral.spconfig.min_lo_exc_temp))
+        # self.SpectralConfigMaxLoExcTemp_label.setText(str(self.spectral.spconfig.max_lo_exc_temp))
+        # self.SpectralConfigStepLoExcTemp_label.setText(str(self.spectral.spconfig.step_lo_exc_temp))
+        # self.SpectralConfigNominalLoExcTemp_label.setText(str(self.spectral.spconfig.nominal_lo_exc_temp))
+        # self.SpectralConfigGratingOffnormal_label.setText(str(self.spectral.spconfig.grating_offnormal_deg))
+        # self.SpectralConfigDefaultRollAngle_label.setText(str(self.spectral.spconfig.default_roll_deg))
+        # self.SpectralConfigDefaultPitchAngle_label.setText(str(self.spectral.spconfig.default_pitch_deg))
+        # self.SpectralConfigDefaultYawDeg_label.setText(str(self.spectral.spconfig.default_yaw_deg))
+        # self.SpectralConfigDefaultNe_label.setText(str(self.spectral.spconfig.default_ne))
+        # self.SpectralConfigDefaultHot2warm_label.setText(str(self.spectral.spconfig.default_hot2warm))
+        # self.SpectralConfigNcamsGrating_label.setText(str(self.spectral.spconfig.ncams_grating))
+        # self.SpectralConfigNominalHiExcTemp_label.setText(str(self.spectral.spconfig.nominal_hi_exc_temp))
+        # self.SpectralConfigNominalSigma0_label.setText(str(self.spectral.spconfig.nominal_sigma0))
 
+        self.LowTemp_rollbox.setValue(int(self.spectral.spconfig.nominal_lo_exc_temp))
+        self.HighTemp_rollbox.setValue(int(self.spectral.spconfig.nominal_hi_exc_temp))
+        self.Sigma_rollbox.setValue(self.spectral.spconfig.nominal_sigma0)
+        self.Hot2WarmRatio_rollbox.setValue(self.spectral.spconfig.default_hot2warm)
+
+        # Define elements for fitting
         self.elementButtons = []
         self.elementDeets = [] # element name, fit state, atomic number, index
         self.kelem = {}
         self.fitState = {}
         self.elementButtons.append(self.Na_button)
-        self.elementDeets.append(['Na',0,11,spectral_library.GuralSpectral.getElementIndex(self.spectral, 11)])
+        self.elementDeets.append(['Na',0,11,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 11)])
         self.elementButtons.append(self.Mg_button)
-        self.elementDeets.append(['Mg',0,12,spectral_library.GuralSpectral.getElementIndex(self.spectral, 12)])
+        self.elementDeets.append(['Mg',0,12,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 12)])
         self.elementButtons.append(self.Ca_button)
-        self.elementDeets.append(['Ca',0,20,spectral_library.GuralSpectral.getElementIndex(self.spectral, 20)])
+        self.elementDeets.append(['Ca',0,20,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 20)])
         self.elementButtons.append(self.Fe_button)
-        self.elementDeets.append(['Fe',0,26,spectral_library.GuralSpectral.getElementIndex(self.spectral, 26)])
+        self.elementDeets.append(['Fe',0,26,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 26)])
         self.elementButtons.append(self.K_button)
-        self.elementDeets.append(['K',0,19,spectral_library.GuralSpectral.getElementIndex(self.spectral, 19)])
+        self.elementDeets.append(['K',0,19,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 19)])
         self.elementButtons.append(self.O_button)
-        self.elementDeets.append(['O',0,8,spectral_library.GuralSpectral.getElementIndex(self.spectral, 8)])
+        self.elementDeets.append(['O',0,8,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 8)])
         self.elementButtons.append(self.N_button)
-        self.elementDeets.append(['N',0,7,spectral_library.GuralSpectral.getElementIndex(self.spectral, 7)])
+        self.elementDeets.append(['N',0,7,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 7)])
         self.elementButtons.append(self.N2_button)
-        self.elementDeets.append(['N2',0,7,spectral_library.GuralSpectral.getElementIndex(self.spectral, 7)])
+        self.elementDeets.append(['N2',0,7,spectral_library.GuralSpectral.getElementIndex(self.spectral, 50, 7)])
         self.elementButtons.append(self.Si_button)
-        self.elementDeets.append(['Si',0,14,spectral_library.GuralSpectral.getElementIndex(self.spectral, 14)])
+        self.elementDeets.append(['Si',0,14,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 14)])
 
-        i = 0
-        for i in range(len(self.elementDeets)):
-            self.kelem[self.elementDeets[i][0]] = self.elementDeets[i][3]
+        # Extra elements
+        self.elementDeets.append(['Al-II',0,13,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 13)])
+        self.elementDeets.append(['Al-I',0,13,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 13)])
+        self.elementDeets.append(['Ar-II',0,18,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 18)])
+        self.elementDeets.append(['Ar-I',0,18,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 18)])
+        self.elementDeets.append(['Ba-II',0,56,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 56)])
+        self.elementDeets.append(['Ba-I',0,56,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 56)])
+        self.elementDeets.append(['Be-II',0,4,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 4)])
+        self.elementDeets.append(['Be-I',0,4,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 4)])
+        self.elementDeets.append(['Ca-II',0,20,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 20)])
+        self.elementDeets.append(['C-II',0,6,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 6)])
+        self.elementDeets.append(['C-I',0,6,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 6)])
+        self.elementDeets.append(['Cl-II',0,17,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 17)])
+        self.elementDeets.append(['Cl-I',0,17,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 17)])
+        self.elementDeets.append(['Co-II',0,27,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 27)])
+        self.elementDeets.append(['Co-I',0,27,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 27)])
+        self.elementDeets.append(['Cr-II',0,24,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 24)])
+        self.elementDeets.append(['Cr-I',0,24,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 24)])
+        self.elementDeets.append(['Cs-II',0,55,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 55)])
+        self.elementDeets.append(['Cs-I',0,55,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 55)])
+        self.elementDeets.append(['Cu-II',0,29,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 29)])
+        self.elementDeets.append(['Cu-I',0,29,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 29)])
+        self.elementDeets.append(['Fe-II',0,26,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 26)])
+        self.elementDeets.append(['F-II',0,9,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 9)])
+        self.elementDeets.append(['F-I',0,9,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 9)])
+        self.elementDeets.append(['Ge-II',0,32,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 32)])
+        self.elementDeets.append(['Ge-I',0,32,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 32)])
+        self.elementDeets.append(['H-II',0,1,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 1)])
+        self.elementDeets.append(['H-I',0,1,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 1)])
+        self.elementDeets.append(['K-II',0,19,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 19)])
+        self.elementDeets.append(['Li-II',0,3,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 3)])
+        self.elementDeets.append(['Li-I',0,3,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 3)])
+        self.elementDeets.append(['Mg-II',0,12,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 12)])
+        self.elementDeets.append(['Mn-II',0,25,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 25)])
+        self.elementDeets.append(['Mn-I',0,25,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 25)])
+        self.elementDeets.append(['Mn-II',0,12,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 12)])
+        self.elementDeets.append(['N2-II',0,7,spectral_library.GuralSpectral.getElementIndex(self.spectral, 51, 7)])
+        self.elementDeets.append(['N2-I',0,7,spectral_library.GuralSpectral.getElementIndex(self.spectral, 50, 7)])
+        self.elementDeets.append(['Na-II',0,11,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 11)])
+        self.elementDeets.append(['Ne-II',0,10,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 10)])
+        self.elementDeets.append(['Ne-I',0,10,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 10)])
+        self.elementDeets.append(['Ni-II',0,28,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 28)])
+        self.elementDeets.append(['Ni-I',0,28,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 28)])
+        self.elementDeets.append(['O-II',0,8,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 8)])
+        self.elementDeets.append(['Pb-II',0,82,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 82)])
+        self.elementDeets.append(['Pb-I',0,82,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 82)])
+        self.elementDeets.append(['P-II',0,15,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 15)])
+        self.elementDeets.append(['P-I',0,15,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 15)])
+        self.elementDeets.append(['Rb-II',0,37,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 37)])
+        self.elementDeets.append(['Rb-I',0,37,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 37)])
+        self.elementDeets.append(['Sc-II',0,21,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 21)])
+        self.elementDeets.append(['Sc-I',0,21,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 21)])
+        self.elementDeets.append(['Sc-II',0,21,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 21)])
+        self.elementDeets.append(['Si-II',0,14,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 14)])
+        self.elementDeets.append(['S-II',0,16,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 16)])
+        self.elementDeets.append(['S-I',0,16,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 16)])
+        self.elementDeets.append(['Sr-II',0,38,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 38)])
+        self.elementDeets.append(['Sr-I',0,38,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 38)])
+        self.elementDeets.append(['Ti-II',0,22,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 22)])
+        self.elementDeets.append(['Ti-I',0,22,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 22)])
+        self.elementDeets.append(['V-II',0,23,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 23)])
+        self.elementDeets.append(['V-I',0,23,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 23)])
+        self.elementDeets.append(['Y-II',0,39,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 39)])
+        self.elementDeets.append(['Y-I',0,39,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 39)])
+        self.elementDeets.append(['Zn-II',0,30,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 30)])
+        self.elementDeets.append(['Zn-I',0,30,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 30)])
+        self.elementDeets.append(['Zr-II',0,40,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 40)])
+        self.elementDeets.append(['Zr-I',0,40,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 40)])
+
+
+        # i = 0
+        # for i in range(len(self.elementDeets)):
+        #     self.kelem[self.elementDeets[i][0]] = self.elementDeets[i][3]
+
 
         # ============================================================================
         #    At this stage, you should extract an integrated spectrum from the 
@@ -863,10 +948,171 @@ class Ui(QtWidgets.QMainWindow):
         self.nm0_label.setText('410.0')
         self.nm0_edit.setText('410.0')
 
+        self.extra_elements = ['Al-II', 'Al-I', 'Ar-II', 'Ar-I', 'Ba-II', 'Ba-I', 'Be-II', 'Be-I', 'Ca-II', 'C-II', \
+        'C-I', 'Cl-II', 'Cl-I', 'Co-II', 'Co-I', 'Cr-II', 'Cr-I', 'Cs-II', 'Cs-I', 'Cu-II', 'Cu-I', 'Fe-II', \
+        'F-II', 'F-I', 'Ge-II', 'Ge-I', 'H-II', 'H-I', 'K-II', 'Li-II', 'Li-I', 'Mg-II', 'Mn-II', 'Mn-I',\
+        'N2-II', 'N2-I', 'Na-II', 'Ne-II', 'Ne-I', 'Ni-II', 'Ni-I', 'O-II', 'Pb-II', 'Pb-I', 'P-II', \
+        'P-I', 'Rb-II', 'Rb-I', 'Sc-II', 'Sc-I', 'Si-II', 'S-I', 'Sr-II', 'Sr-I', 'Ti-II', 'Ti-I', 'V-II', 'V-I', \
+        'Y-II', 'Y-I', 'Zn-II', 'Zn-I', 'Zr-II', 'Zr-I']
+        self.ExtraElements_combo.addItems(self.extra_elements)
+        # self.DisplayedExtraElements_combo.addItem('REMOVE')
+        # for i in range(len(self.extra_elements)):
+        # #     item = QtGui.QStandardItem(self.extra_elements[i])
+        # #     item.setForeground(QColor('red'))
+        # #     font = item.font()
+        # #     font.setPointSize(10)
+        # #     item.setFont(font)
+        # #     model.appendRow(item)
+            
+            # self.ExtraElements_combo.addItem(self.extra_elements[i].setFont(QtGui.QFont("Times", 15, QtGui.QFont.Bold)))
+            # if i == 2:
+            #     self.ExtraElements_combo.currentText().setStyleSheet('background-color:#FFFFFF;font:bold')
+        # ExtraElements_layout.addWidget(self.ExtraElements_combo)
+
+        self.ExtraElements_combo.currentIndexChanged.connect(self.plotExtraElement)
+        self.extraElementsCount = 0
+        self.DisplayedExtraElements_combo.currentIndexChanged.connect(self.removeExtraElement)
+        # self.PlotExtraElements_button.clicked.connect(self.plotExtraElement)
+
+        ########## Setup Utilities Tab ############
+        spectral_library.readStarSpectra(self.spectral)
+        starlist = ['Alderamin', 'Caph', 'Dubhe', 'Kappa Dra', 'Kochab', 'Megrez', 'Merak', 'Polaris', 'Shedir', 'Thuban', 'Yildun']
+        self.ChooseStar_combo.addItems(starlist)
+
+        self.UploadStar_button.clicked.connect(self.uploadStarVid)
+        self.UploadStarFlat_button.clicked.connect(self.uploadStarFlat)
+        self.PlotStar_button.clicked.connect(self.plotStar)
+        self.ShowStellarSpectrum_button.clicked.connect(self.plotStellarSpectrum)
+        self.PickStarReference_button.clicked.connect(lambda: self.stellarCalibrationClicked())
+        self.ComputeCalibration_button.clicked.connect(self.computeCalibration)
+
+        self.elementsState = np.zeros(3) # unlocked, fitting, locked
+
+    # def mousePressEvent(self, QMouseEvent):
+    #     if QMouseEvent.button() == Qt.LeftButton:
+    #         print("Left Button Clicked")
+    #         self.leftButtonClicked = True
+    #         self.rightButtonClicked = False
+    #     elif QMouseEvent.button() == Qt.RightButton:
+    #         #do what you want here
+    #         print("Right Button Clicked")
+    #         self.rightButtonClicked = True
+    #         self.leftButtonClicked = False
 
     ###############################################################################################
     ###################################### /// FUNCTIONS /// ######################################
     ###############################################################################################
+
+    def computeCalibration(self):
+
+        self.calibration = np.divide(self.stellarIntensity, self.spectral_profile)
+        self.calibrationX = self.spectral_x
+
+        # Set axis titles 
+        self.Plot.setLabel('left', 'Intensity')
+        self.Plot.setLabel('bottom', 'Wavelength (nm)')
+
+        # Create the plot
+        pen = pg.mkPen(width = 2)
+        self.Plot.plot(self.calibrationX, self.calibration, pen = pen)
+
+    def plotStellarSpectrum(self):
+        # nwave, nstars, wave, star
+        # hip, spectype, vmag, specval,
+
+        compStars = {
+            'Alderamin': 105199,
+            'Caph': 746,
+            'Dubhe': 54061,
+            'Kappa Dra': 61281,
+            'Kochab': 72607,
+            'Megrez': 59774,
+            'Merak': 53910,
+            'Polaris': 11767,
+            'Shedir': 3179,
+            'Thuban': 68756,
+            'Yildun': 85822}
+
+        starHipNum = int(compStars[self.ChooseStar_combo.currentText()])
+
+        # for i in range(self.spectral.starspectra.nstars):
+        #     print(self.spectral.starspectra.wave[0])
+        #     if self.spectral.starspectra.star[i].hip == starHipNum:
+        #         print('Match: %s' %  self.spectral.starspectra.star[i].hip)
+        #         self.spectral.star_index = i
+
+        spectral_library.GuralSpectral.interpolateCatalogedSpectrum(self.spectral, starHipNum)
+
+        star_x = []
+        star_y = []
+        for i in range(self.spectral.starspectra.nwave):
+            star_x = np.append(star_x, self.spectral.starspectra.wave[i])
+            star_y = np.append(star_y, self.spectral.starspectra.star[self.spectral.star_index].specval[i])
+
+        self.calibMax = np.max(star_y)
+        self.calScale = self.calibMax / self.starMax
+        self.stellarIntensity = star_y
+
+        print('Scaler: %s' % self.calScale)
+
+        self.clearSpec()
+        self.plotStar()
+
+        print('x min: %s   x max: %s' % (np.min(star_x), np.max(star_x)))
+        self.star_x_min = np.min(star_x)
+        self.star_x_max = np.max(star_x)
+
+        # index_min = np.where(star_x == np.round(self.scaled_spectral_x_min))
+        # index_max = np.where(star_x == np.round(self.scaled_spectral_x_max))
+        index_min = (np.abs(star_x - np.round(self.scaled_spectral_x_min))).argmin()
+        index_max = (np.abs(star_x - np.round(self.scaled_spectral_x_max))).argmin()
+
+        # print(star_x)
+
+        print('Index of min observed: %s' % np.where(star_x == np.round(self.scaled_spectral_x_min)))
+        print('Index of max observed: %s' % np.where(star_x == np.round(self.scaled_spectral_x_max)))
+
+        self.star_x_clipped = star_x[index_min:index_max]
+        # print(len(self.star_x_clipped))
+        # print(len(self.spectral_x))
+
+        # Set axis titles 
+        self.Plot.setLabel('left', 'Intensity')
+        self.Plot.setLabel('bottom', 'Wavelength (nm)')
+        print('Calib Max: %s' % np.max(star_y))
+        # Create the plot
+        pen = pg.mkPen(width = 2)
+        self.Plot.plot(star_x, star_y, pen = pen)
+        # self.Plot.setXRange(np.min(scaled_spectral_profile),np.max(scaled_spectral_profile))
+        # self.CalibrateSpectrum_button.setEnabled(True)
+        # self.SetReference_button.setEnabled(True)
+
+    def stellarCalibrationClicked(self):
+        self.window = QtWidgets.QMainWindow()
+        self.ui = Ui_StellarCalibrationDialog()
+        self.ui.setupUi(self.window)
+        self.ui.nm0StarSet_button.clicked.connect(self.nm0StarSet)
+        self.window.show()
+
+    def columnDensityClicked(self):
+        self.window = QtWidgets.QMainWindow()
+        self.ui = Ui_ColumnDensityDialog()
+        self.ui.setupUi(self.window)
+        self.ui.columnDensityAccept_button.clicked.connect(self.columnDensitySet)
+        self.window.show()
+
+    def columnDensitySet(self):
+        self.spectral.elemdata.els[self.elemIndex].N_warm = float(self.ui.columnDensity_edit.text()) * (10 ** self.ui.exponent_rollbox.value())
+        print(float(self.ui.columnDensity_edit.text()), self.ui.exponent_rollbox.value())
+        print('N warm: %s' % self.spectral.elemdata.els[self.elemIndex].N_warm)
+
+    def nm0StarSet(self):
+        self.nm0Star = float(self.ui.nm0Star_edit.text())
+        self.x0Star = float(self.ui.x0Star_label.text())
+        self.clearSpec()
+        self.plotStar()
+        # print(self.x0Star)
+
     def calibrationClicked(self):
         self.window = QtWidgets.QMainWindow()
         self.ui = Ui_CalibrationDialog()
@@ -880,13 +1126,203 @@ class Ui(QtWidgets.QMainWindow):
         # nm0 =int(self.ui.nm0_edit.text())
         self.nm0_label.setText(self.ui.nm0_edit.text())
         self.nm0_edit.setText(self.ui.nm0_edit.text())
-        print('Hey')
         self.clearSpec()
         self.plotMeasuredSpec()
 
+    def uploadStarVid(self, byteswap=True, dark=None):
+        dlg = QFileDialog()
+        dlg.setFileMode(QFileDialog.AnyFile)
+
+        if dlg.exec():
+            spectral_file_name = dlg.selectedFiles()
+
+            if spectral_file_name[0].endswith('.vid'):
+                
+                star_path = os.path.split(spectral_file_name[0])[0]
+                star_name = os.path.split(spectral_file_name[0])[1]
+
+                self.spectral_vid = readVid(star_path, star_name)
+                self.spectral_currentframe = int(len(self.spectral_vid.frames)/2)
+                self.spectral_vidlength = len(self.spectral_vid.frames)
+
+                self.updateStarFrames()
+                self.autoPickROI()
+                # self.uploadStarFlat()
+
+    def uploadStarFlat(self, byteswap=True, dark=None):
+        dlg = QFileDialog()
+        dlg.setFileMode(QFileDialog.AnyFile)
+
+        if dlg.exec():
+            flat_file_name = dlg.selectedFiles()
+            
+            if flat_file_name[0].endswith('.png'):
+                # print(flat_file_name[0])
+               
+                # Load the flat image
+                flat_img = loadImage(flat_file_name[0], -1)
+
+                # # Change the file type if given
+                # if dtype is not None:
+                #     flat_img = flat_img.astype(dtype)
+                #  # If the flat isn't a 8 bit integer, convert it to uint16
+                # elif flat_img.dtype != np.uint8:
+                #     flat_img = flat_img.astype(np.uint16)
+
+                if flat_img.dtype != np.uint8:
+                    flat_img = flat_img.astype(np.uint16)
+
+                # if byteswap:
+                #     flat_img = flat_img.byteswap()
+                #     print('swapped bytes')
+
+                flat_img = flat_img.byteswap()
+
+                # Init a new Flat structure
+                self.flat_structure = FlatStruct(flat_img, dark=dark)
+
+                self.removeStarFlat()
+            else:
+                pass
+
+    def removeStarFlat(self):
+        """
+        Allows user to remove flat from the current frame only. 
+        Flat can be restored by moving to next/last frame, and then 
+        returning to desired frame. 
+
+        Background and spectrum will still be calculted with flat applied,
+        the flat can only be removed for user convenience.
+        """
+
+        # Set frame 
+        # self.spectral_frame = self.spectral_vid.frames[self.spectral_currentframe]
+        # self.spectral_frame_img = self.spectral_frame.img_data
+
+        self.spectral_frame_img = applyFlat(self.spectral_frame_img, self.flat_structure)
+
+        # # Display time
+        # self.st = unixTime2Date(self.spectral_frame.ts, self.spectral_frame.tu, dt_obj=False)
+        # self.st = str(self.st)
+        # self.SpectralTime_label.setText(self.st)
+        # self.update()
+
+        # # Display frame number
+        # self.SpectralFrame_label.setNum(self.spectral_currentframe)
+        # self.update()
+
+        # Set image levels
+        minv = np.percentile(self.spectral_frame_img, 0.1)
+        maxv = np.percentile(self.spectral_frame_img, 99.95)
+        gamma = 1
+
+        # Create an image with properly adjust levels
+        spectral_frame_img = adjustLevels(self.spectral_frame_img, minv, gamma, maxv, scaleto8bits=True)
+
+        # Set spectral image
+        self.spectral_image.setImage(spectral_frame_img.T)
+
+    def updateStarFrames(self):
+
+        self.avg_frame_img = np.zeros((self.spectral_vid.frames[0].img_data.shape[0],self.spectral_vid.frames[0].img_data.shape[1]))
+        for i in range(len(self.spectral_vid.frames)):
+            self.avg_frame_img += self.spectral_vid.frames[i].img_data
+
+        self.avg_frame_img = self.avg_frame_img / len(self.spectral_vid.frames)
+        self.avg_frame_img = self.avg_frame_img.astype(int)
+
+        self.spectral_frame_img = self.avg_frame_img
+
+        # Display time
+        # self.st = unixTime2Date(self.spectral_frame.ts, self.spectral_frame.tu, dt_obj=False)
+
+        # self.SpectralTime_label.setText(' at ' + str(self.st[3]) + ':' + str(self.st[4]) + \
+        #  ':' + str(self.st[5]) + '.' + str(self.st[6]) + 'UT on ' + str(self.st[0]) + '/' + \
+        #  str(self.st[1]) + '/' + str(self.st[2]))
+        # self.update()
+
+        # # Display frame number
+        # # self.SpectralFrame_label.setNum(self.spectral_currentframe)
+        # self.SpectralFrame_label.setText('Frame # ' + str(self.spectral_currentframe))
+        # self.update()
+
+        # Call the function to apply the flat
+        # if self.flat_structure is not None: 
+        #     self.spectral_frame_img = applyFlat(self.spectral_frame_img, self.flat_structure)
+
+        # Set spectral image
+        self.spectral_image.setImage(self.spectral_frame_img.T)
+
+    def plotStar(self):
+
+        self.spectral_array = self.spectral_roi.getArrayRegion(self.spectral_frame_img.T, self.spectral_image)
+
+
+        px = 1/plt.rcParams['figure.dpi']  # pixel in inches
+        # plt.subplots(figsize=(676*px, 100*px))
+        # plt.imshow(spectral_array_unzoomed.T)
+        # plt.show()
+
+        # Set spectral profile
+        self.spectral_profile = np.sum(self.spectral_array, axis=1)
+        self.spectral_profile = self.spectral_profile[5:-5]
+
+        # Init array for the scaled profile
+        global scaled_spectral_profile
+        scaled_spectral_profile = np.zeros(len(self.spectral_profile))
+
+        # Scaling parameters
+        # s = 2.85 # px/nm
+        s = self.SpectralScale_rollbox.value() * self.spectral_vid.frames[0].img_data.shape[1]/676.0 # px/nm
+        # nm0 = float(self.nm0_edit.text()) # nm 
+        print('s = %s' % s)
+
+        try:
+            if self.ui.x0Star_label.text() == 'not set':
+                pass
+        except:
+            self.x0Star = 0
+            self.nm0Star = 0
+            self.calScale = 1
+
+        self.dnm = (self.nm0Star-self.x0Star)
+
+
+        # Calculate wavelength values as they correspond to each pixel
+        for i in range(len(scaled_spectral_profile)):
+            # nmt = (((i - self.x) / s) + nm0)
+            nmt = i/s + 316.0 + self.dnm
+            scaled_spectral_profile = np.append(scaled_spectral_profile, nmt)
+
+        # Scale observed spectrum
+        self.starMax = np.max(self.spectral_profile)
+        self.spectral_profile = self.spectral_profile * self.calScale
+        self.spectral_x = scaled_spectral_profile
+
+        # Take the part of the array with the desired values
+        length = len(scaled_spectral_profile)
+        middle_index = length//2
+        
+        # Reset array
+        scaled_spectral_profile = scaled_spectral_profile[middle_index:]
+
+        print('x min: %s  x max: %s' % (np.min(scaled_spectral_profile), np.max(scaled_spectral_profile)))
+        self.scaled_spectral_x_min = np.min(scaled_spectral_profile)
+        self.scaled_spectral_x_max = np.max(scaled_spectral_profile)
+
+        # Set axis titles 
+        self.Plot.setLabel('left', 'Intensity')
+        self.Plot.setLabel('bottom', 'Wavelength (nm)')
+
+        # Create the plot
+        pen = pg.mkPen('r', width=2)
+        self.Plot.plot(scaled_spectral_profile, self.spectral_profile, pen = pen)
+        self.Plot.setXRange(np.min(scaled_spectral_profile),np.max(scaled_spectral_profile))
+        # self.CalibrateSpectrum_button.setEnabled(True)
+        # self.SetReference_button.setEnabled(True)
+
     def calculateScale(self):
-        print(self.ui.Wave1_edit.text())
-        print('Yay!')
+
         old_scale = 2.85
         w1 = int(self.ui.Wave1_edit.text())
         w2 = int(self.ui.Wave2_edit.text())
@@ -895,15 +1331,13 @@ class Ui(QtWidgets.QMainWindow):
         new_scale = old_scale / np.abs((w2-w1)/(x2-x1))
         self.ui.NewScale_rollbox.setValue(new_scale)
         nm0 = float(self.ui.nm0_edit.text())
-        # self.SpectralScale_rollbox.setValue(new_scale)
         self.ui.UpdateScale_button.setEnabled(True)
 
     def updateScale(self):
         self.SpectralScale_rollbox.setValue(self.ui.NewScale_rollbox.value())
-        # self.clearSpec()
         self.nm0_label.setText(self.ui.nm0_edit.text())
         self.nm0_edit.setText(self.ui.nm0_edit.text())
-        self.Scale_label.setText(self.ui.NewScale_rollbox.value())
+        self.Scale_label.setText(str(self.ui.NewScale_rollbox.value()))
         self.plotMeasuredSpec()
 
     def mouse_clicked(self, evt):
@@ -930,55 +1364,30 @@ class Ui(QtWidgets.QMainWindow):
             except:
                 pass
 
-    def plotElement(self, event):
+            try:
+                self.ui.x0Star_label.setText(str(mouse_point.x()))
+                self.statusBar.showMessage('Setting x0 to %f' % mouse_point.x())
+            except:
+                pass
 
-        scaled_element_array = np.zeros(len(self.element_array))
+    def plotExtraElement(self):
+        if self.ExtraElements_combo.currentIndex() == 0: return
+        print('Plotting extra element')
 
-        # # Scaling parameters
-        # s = 2.85 # px/nm
-        # nm0 = 410 # nm
+        for i in range(len(self.elementDeets)):
+            if self.elementDeets[i][0] == self.ExtraElements_combo.currentText():
+                self.elemName = self.elementDeets[i][0]
+                self.elemNumber = self.elementDeets[i][2]
+                self.elemIndex = self.elementDeets[i][3]
+                self.calculateElementSpectrum()
 
-        # for i in range(len(scaled_element_array)):
-        #     nmt = (((i-self.x) / s) + nm0)
-        #     scaled_element_array = np.append(scaled_element_array, nmt)
+        # scaled_extra_element_array = np.zeros(len(self.element_array))
 
-        # length = len(scaled_element_array)
-        # middle_index = length // 2
-
-        # pen = pg.mkPen('b', width=2)
-        # self.Plot.plot(self.element_array[:,0], self.element_array[:,1], pen=pg.mkPen('b', width=3))
-        # pen = pg.mkPen('r', width=1)
-
-        # Na Element number is 11
-        # K Element number is 19
-        # Mg Element number is 12
-        # O Element number is 8
-        # N2 Element number is 7
-        # Si Element number is 14
-        # Fe Element number is 26
-        # Ca Element number is 20
-        # N Element number is 7
-
-        if self.elemName == 'Na':
-            pen_color = (0,9)
-        elif self.elemName == 'K':
-            pen_color = (1,9)
-        elif self.elemName == 'Mg':
-            pen_color = (2,9)
-        elif self.elemName == 'O':
-            pen_color = (3,9)
-        elif self.elemName == 'N2':
-            pen_color = (4,9)
-        elif self.elemName == 'Si':
-            pen_color = (5,9)
-        elif self.elemName == 'Fe':
-            pen_color = (6,9)
-        elif self.elemName == 'Ca':
-            pen_color = (7,9)
-        elif self.elemName == 'N':
-            pen_color = (8,9)
-        else:
-            pen_color = 'w' 
+        # There are 64 extra elements. Let's make the colors...
+        try:
+            pen_color = (self.elemIndex,64)
+        except:
+            pen_color = 'w'
 
         plotName = str(self.elemName)
 
@@ -986,54 +1395,190 @@ class Ui(QtWidgets.QMainWindow):
         except KeyError:  globals()[plotName] = None
 
         if globals()[plotName] is None:
-            # print('plotName is undefined')
-            globals()[plotName] = self.Plot.plot(self.element_array[:,0], self.element_array[:,2], pen=pg.mkPen(pen_color, width=3))
-            # print('Plotting element for the first time... %s' % self.elemName)
+            self.Plot.addLegend()
+            self.Plot.enableAutoRange(axis='y', enable=True)
+            self.DisplayedExtraElements_combo.addItem(plotName)
+            globals()[plotName] = self.Plot.plot(self.element_array[:,0], self.element_array[:,2], pen=pg.mkPen(pen_color, width=2, style=QtCore.Qt.DotLine), name=self.elemName)
         else:
-            # print('plotName is defined')
-            globals()[plotName].setData(self.element_array[:,0], self.element_array[:,2])
-            # print('Updated element data')
+            # globals()[plotName].setData(self.element_array[:,0], self.element_array[:,2])
+            self.Plot.removeItem(globals()[self.elemName])
+            globals()[self.elemName] = None
 
-        
+        self.ExtraElements_combo.setCurrentIndex(0)
+        self.extraElementsCount += 1
+
+    def removeExtraElement(self):
+        # if self.DisplayedExtraElements_combo.currentIndex == 0:
+        if self.DisplayedExtraElements_combo.count() == self.extraElementsCount:
+            self.Plot.removeItem(globals()[self.DisplayedExtraElements_combo.currentText()])
+            self.DisplayedExtraElements_combo.removeItem(self.DisplayedExtraElements_combo.currentIndex())
+            self.extraElementsCount -= 1
+        else:
+            return
+
+    def plotElement(self, event):
+
+        # scaled_element_array = np.zeros(len(self.element_array))
+
+        # # Scaling parameters
+        # s = 2.85 # px/nm
+        # nm0 = 410 # nm
+
+        if self.elemName == 'Na':
+            pen_color = (0,10)
+        elif self.elemName == 'K':
+            pen_color = (1,10)
+        elif self.elemName == 'Mg':
+            pen_color = (2,10)
+        elif self.elemName == 'O':
+            pen_color = (3,10)
+        elif self.elemName == 'N2':
+            pen_color = (4,10)
+        elif self.elemName == 'Si':
+            pen_color = (5,10)
+        elif self.elemName == 'Fe':
+            pen_color = (6,10)
+        elif self.elemName == 'Ca':
+            pen_color = (7,10)
+        elif self.elemName == 'N':
+            pen_color = (8,10)
+        else:
+            pen_color = 'w' 
+
+        plotName = str(self.elemName)
+
+        try:
+            globals()[plotName]
+        except KeyError: 
+            globals()[plotName] = None
+
+        if globals()[plotName] is None:
+            self.Plot.addLegend()
+            globals()[plotName] = self.Plot.plot(self.element_array[:,0], self.element_array[:,3], pen=pg.mkPen(pen_color, width=4), name=self.elemName)
+        else:
+            # self.Plot.enableAutoRange(axis='y', enable=True)
+            # self.Plot.setAutoVisible(y=True)
+            globals()[plotName].setData(self.element_array[:,0], self.element_array[:,3])  
 
     def refreshPlot(self):
-        # self.spectral.elemdata.
-        # print('Hot2Warm: %s' % self.spectral.elemdata.hot2warm)
-        self.spectral.spconfig.default_hot2warm = self.Hot2WarmRatio_rollbox.value()
         self.spectral.elemdata.hot2warm = self.Hot2WarmRatio_rollbox.value()
-
-        # print('Hot2Warm: %s' % self.spectral.elemdata.hot2warm)
-        # print('Sigma0: %s' % self.spectral.elemdata.sigma0)
         self.spectral.elemdata.sigma0 = self.Sigma_rollbox.value()
-        # print('Sigma0: %s' % self.spectral.elemdata.sigma0)
-        # self.spectral.changeBroadening(10)
+        self.spectral.elemdata.Tlo = self.LowTemp_rollbox.value()
+        self.spectral.elemdata.Thi = self.HighTemp_rollbox.value()
 
+        spectral_library.GuralSpectral.changeHot2WarmRatio(self.spectral, self.spectral.elemdata.hot2warm)
         spectral_library.GuralSpectral.plasmaVolumes(self.spectral)
         spectral_library.GuralSpectral.computeWarmPlasmaSpectrum(self.spectral)
         spectral_library.GuralSpectral.computeHotPlasmaSpectrum(self.spectral)
-        spectral_library.GuralSpectral.extinctionModel(self.spectral)
-        # spectral_library.GuralSpectral.extinctionModel(self.spectral)
 
-        self.element_array = np.zeros((self.spectral.spcalib.nwavelengths,3))
-        for i in range(self.spectral.spcalib.nwavelengths):
-            self.element_array[i][0] = self.spectral.spcalib.wavelength_nm[i]
-            self.element_array[i][1] = self.spectral.elemdata.els[self.elemIndex].speclo[i]
-            self.element_array[i][2] = self.spectral.elemdata.els[self.elemIndex].spechi[i]
+        if self.Extinction_check.isChecked():
+            spectral_library.GuralSpectral.extinctionModel(self.spectral)
 
+
+        if self.HotTempOn_button.isChecked() and (self.WarmTempOn_button.isChecked() == False):
+            print('Hot is on. Warm is not.')
+            
+            self.element_array = np.zeros((self.spectral.spcalib.nwavelengths,4))
+            for i in range(self.spectral.spcalib.nwavelengths):
+                self.element_array[i][0] = self.spectral.spcalib.wavelength_nm[i]
+                self.element_array[i][1] = 0
+                self.element_array[i][2] = self.spectral.elemdata.els[self.elemIndex].spechi[i]
+                self.element_array[i][3] = self.element_array[i][2]
+
+        elif (self.HotTempOn_button.isChecked() == False) and self.WarmTempOn_button.isChecked():
+            print('Warm is on. Hot is not.')
+            # spectral_library.GuralSpectral.computeWarmPlasmaSpectrum(self.spectral)
+            self.element_array = np.zeros((self.spectral.spcalib.nwavelengths,4))
+            for i in range(self.spectral.spcalib.nwavelengths):
+                self.element_array[i][0] = self.spectral.spcalib.wavelength_nm[i]
+                self.element_array[i][1] = self.spectral.elemdata.els[self.elemIndex].speclo[i]
+                self.element_array[i][2] = 0
+                self.element_array[i][3] = self.element_array[i][1]
+
+        else:
+            print('Warm and Hot are both on.')
+            # spectral_library.GuralSpectral.computeWarmPlasmaSpectrum(self.spectral)
+            # spectral_library.GuralSpectral.computeHotPlasmaSpectrum(self.spectral)
+            self.element_array = np.zeros((self.spectral.spcalib.nwavelengths,4))
+            for i in range(self.spectral.spcalib.nwavelengths):
+                self.element_array[i][0] = self.spectral.spcalib.wavelength_nm[i]
+                self.element_array[i][1] = self.spectral.elemdata.els[self.elemIndex].speclo[i]
+                self.element_array[i][2] = self.spectral.elemdata.els[self.elemIndex].spechi[i]
+                self.element_array[i][3] = self.element_array[i][1] + self.element_array[i][2]
 
         self.element_array[:,1] = self.element_array[:,1] * 10**self.Scale_rollbox.value()
         self.element_array[:,2] = self.element_array[:,2] * 10**self.Scale_rollbox.value()
-        # print(np.max(self.element_array[:,0]))
-        # print(np.max(self.element_array[:,1]))
-        # print(np.max(self.element_array[:,2]))
-        # print(np.shape(self.element_array))
-        # print(np.max(scaled_spectral_profile))
-        # self.calculateElementSpectrum()
-        self.plotElement(self)
-        # print('Plot refreshed...')
-        # print('Max element value: %s %s' % (max(self.element_array[:,1]), max(self.element_array[:,2])))
+        self.element_array[:,3] = self.element_array[:,3] * 10**self.Scale_rollbox.value()
+        print('Max values: %s %s %s' % (np.max(self.element_array[:,1]), np.max(self.element_array[:,2]), np.max(self.element_array[:,3])))
 
+        self.plotElement(self)
+
+    def calculateFullSpectrum(self):
+        self.kelem_ref = spectral_library.GuralSpectral.setReferenceElem(self.spectral)
+
+        print('Reference Element: %s' % self.kelem_ref)
+
+
+        # print(self.spectral.elemdata.kelem_ref)
+        # print(self.spectral.elemdata.els[0].N_warm)
+        fittingElems = []
+
+        for i in range(self.spectral.elemdata.nelements):
+            # print(self.elementDeets[i][0],self.elementDeets[i][3], self.elementDeets[i][1])
+            if (self.elementDeets[i][1] == 1):
+                fittingElems.append(self.elementDeets[i][3])
+
+        print(fittingElems)
+
+        if len(fittingElems) == 2:
+            spectral_library.GuralSpectral.computeFullSpec(self.spectral, fittingElems[0], fittingElems[1])
+        elif len(fittingElems) == 3:
+            spectral_library.GuralSpectral.computeFullSpec(self.spectral, fittingElems[0], fittingElems[1], fittingElems[2])
+
+        # print(self.spectral.spcalib.wavelength_nm)
+        # for kwave in range(self.spectral.spcalib.nwavelengths):
+        #     print(self.spectral.spectra.fit_spectrum[kwave])
+
+        self.fullspec_array = np.zeros((self.spectral.spcalib.nwavelengths,2))
+
+        for i in range(self.spectral.spcalib.nwavelengths):
+            self.fullspec_array[i][0] = self.spectral.spcalib.wavelength_nm[i]
+            self.fullspec_array[i][1] = self.spectral.spectra.fit_spectrum[i]
+
+        self.fullSpecScaler = self.plotMax / np.max(self.fullspec_array[:,1])
+
+        self.plotFullSpectrum()
+
+        spectral_library.GuralSpectral.writeFullSpectrum2(self.spectral, '/home/mmazur/Camo-S/Camo-S/testout.txt')
+
+        # print(self.spectral.elemdata.els[17].N_warm)
+        print(self.spectral.ne)
+
+        # for i in range(self.spectral.elemdata.nelements):
+        #     print(self.spectral.elemdata.els[i].element_string, self.elementDeets[i][3], self.elementDeets[i][1])
+
+    def plotFullSpectrum(self):
+
+        plotName = 'Full Spectrum'
+
+        try:
+            globals()[plotName]
+        except KeyError:
+            globals()[plotName] = None
+
+        if globals()[plotName] is None:
+            self.Plot.addLegend()
+            globals()[plotName] = self.Plot.plot(self.fullspec_array[:,0], self.fullspec_array[:,1]*self.fullSpecScaler, pen=pg.mkPen('w', width=4), name='Full')
+        else:
+            globals()[plotName].setData(self.fullspec_array[:,0], self.fullspec_array[:,1])
+        d
     def calculateElementSpectrum(self):
+        self.spectral.spconfig.default_hot2warm = self.Hot2WarmRatio_rollbox.value()
+        self.spectral.elemdata.hot2warm = self.Hot2WarmRatio_rollbox.value()
+        self.spectral.elemdata.sigma0 = self.Sigma_rollbox.value()
+        self.spectral.elemdata.Tlo = self.LowTemp_rollbox.value()
+        self.spectral.elemdata.Thi = self.HighTemp_rollbox.value()
+
         #========== If any of the input arguments in the call below to PlasmaVolumes changes
         #              at a later time, you must call PlasmaVolumes again to infill the  
         #              elemdata structure values for height, range, and volumes. 
@@ -1044,45 +1589,75 @@ class Ui(QtWidgets.QMainWindow):
 
         #========== Compute the model for extinction and the airmass given the event's metadata.
         #           You may want to update for each altitude change or keep it fixed for all frames.
-        spectral_library.GuralSpectral.extinctionModel(self.spectral)
+        if self.Extinction_check.isChecked():
+            spectral_library.GuralSpectral.extinctionModel(self.spectral)
 
         #========== Zero all the elemental abundances and #atoms
         #           Set all element fitting flags to not selected for fitting = FITLESS 
         #           Compute Jones 1997 fraction of ionized atoms Beta = n+ / ( n+ + no ) = function( Vinf )
-        spectral_library.GuralSpectral.resetAllElementalAbudances(self.spectral)
+        # spectral_library.GuralSpectral.resetAllElementalAbudances(self.spectral)
 
         # #========== Obtain model spectra for warm and hot temperature plasmas
         # # self.spectral.elemdata.els[kelem_Fe].user_fitflag = FITTING
-        spectral_library.GuralSpectral.elemFitting(self.spectral, self.elemIndex)
+        
+
+        # spectral_library.GuralSpectral.elemFitting(self.spectral, self.elemIndex)
+
         spectral_library.GuralSpectral.computeWarmPlasmaSpectrum(self.spectral)
         spectral_library.GuralSpectral.computeHotPlasmaSpectrum(self.spectral)
 
-        # spectral_library.WriteSpectrum("spectral_library/DriverOutputFiles/FeModelSpectra_LoHi.txt", self.spectral.spcalib.nwavelengths, self.spectral.spcalib.wavelength_nm, self.spectral.elemdata.els[kelem_Fe].speclo, self.spectral.elemdata.els[kelem_Fe].spechi)
-        spectral_library.GuralSpectral.writeSpectrum(self.spectral, self.elemIndex)
-        # print(self.spectral.spcalib.nwavelengths)
-        # print('test')
+        if self.HotTempOn_button.isChecked() and (self.WarmTempOn_button.isChecked() == False):
+            print('Hot is on. Warm is not.')
+            # spectral_library.GuralSpectral.computeHotPlasmaSpectrum(self.spectral)
+            self.element_array = np.zeros((self.spectral.spcalib.nwavelengths,4))
+            for i in range(self.spectral.spcalib.nwavelengths):
+                self.element_array[i][0] = self.spectral.spcalib.wavelength_nm[i]
+                self.element_array[i][1] = 0
+                self.element_array[i][2] = self.spectral.elemdata.els[self.elemIndex].spechi[i]
+                self.element_array[i][3] = self.element_array[i][2]
 
-        self.element_array = np.zeros((self.spectral.spcalib.nwavelengths,3))
-        for i in range(self.spectral.spcalib.nwavelengths):
-            self.element_array[i][0] = self.spectral.spcalib.wavelength_nm[i]
-            self.element_array[i][1] = self.spectral.elemdata.els[self.elemIndex].speclo[i]
-            self.element_array[i][2] = self.spectral.elemdata.els[self.elemIndex].spechi[i]
+        elif (self.HotTempOn_button.isChecked() == False) and self.WarmTempOn_button.isChecked():
+            print('Warm is on. Hot is not.')
+            # spectral_library.GuralSpectral.computeWarmPlasmaSpectrum(self.spectral)
+            self.element_array = np.zeros((self.spectral.spcalib.nwavelengths,4))
+            for i in range(self.spectral.spcalib.nwavelengths):
+                self.element_array[i][0] = self.spectral.spcalib.wavelength_nm[i]
+                self.element_array[i][1] = self.spectral.elemdata.els[self.elemIndex].speclo[i]
+                self.element_array[i][2] = 0
+                self.element_array[i][3] = self.element_array[i][1]
 
-        # print('Max element value: %s' % max(self.element_array[:,2]))
+        else:
+            print('Warm and Hot are both on.')
+            # spectral_library.GuralSpectral.computeWarmPlasmaSpectrum(self.spectral)
+            # spectral_library.GuralSpectral.computeHotPlasmaSpectrum(self.spectral)
+            self.element_array = np.zeros((self.spectral.spcalib.nwavelengths,4))
+            for i in range(self.spectral.spcalib.nwavelengths):
+                self.element_array[i][0] = self.spectral.spcalib.wavelength_nm[i]
+                self.element_array[i][1] = self.spectral.elemdata.els[self.elemIndex].speclo[i]
+                self.element_array[i][2] = self.spectral.elemdata.els[self.elemIndex].spechi[i]
+                self.element_array[i][3] = self.element_array[i][1] + self.element_array[i][2]
 
-        # print(self.element_array[300][1])
-        # print(self.spectral.elemdata.els[self.elemIndex].speclo[1])
-        # print(self.spectral.elemdata.els[self.elemIndex].spechi[1])
+        self.element_array[:,1] = self.element_array[:,1] * 10**self.Scale_rollbox.value()
+        self.element_array[:,2] = self.element_array[:,2] * 10**self.Scale_rollbox.value()
+        self.element_array[:,3] = self.element_array[:,3] * 10**self.Scale_rollbox.value()
 
+    def messageBox(self, message):
+        msgBox = QMessageBox()
+        msgBox.setIcon(QMessageBox.Warning)
+        msgBox.setText(message)
+        msgBox.setStandardButtons(QMessageBox.Ok)
+        # msgBox.buttonClicked.connect(msgButtonClick)
+        msgBox.exec()
 
     def elementButtonClicked(self):
 
         # Detect whether shift key is held down
         mods = QtGui.QApplication.keyboardModifiers()
         isShiftPressed = mods & QtCore.Qt.ShiftModifier
-        # print("Shift? %s" % bool(isShiftPressed))
-        if bool(isShiftPressed) == True:
-            self.sender().setStyleSheet('background-color:#FFFFFF;font:bold')
+
+        # if bool(isShiftPressed) == True:
+        #     self.sender().setStyleSheet('background-color:#FFFFFF;font:bold')
+        #     print('Shift Pressed')
 
         self.buttonClicked = self.sender().objectName()
       
@@ -1090,49 +1665,91 @@ class Ui(QtWidgets.QMainWindow):
         self.buttonIndex = self.elementButtons.index(self.sender())
         self.elemNumber = self.elementDeets[self.buttonIndex][2]
         self.elemIndex = self.elementDeets[self.buttonIndex][3]
+        # print(self.elemNumber, self.elemIndex, self.buttonIndex)
 
-        # print('Button name is %s' % str(self.buttonClicked))
-        # # print('Button index is %s' % self.buttonIndex)
-        # # print('Element index is %s' % self.elemIndex)
-        # print('Element number is %s' % self.elemNumber)
+        self.elementDeets[self.buttonIndex][1] += 1
 
-        if self.elementDeets[self.buttonIndex][1] < 2:
-            self.elementDeets[self.buttonIndex][1] += 1
-        else:
+        # print(self.spectral.elemdata.els[0:-1].element_string)
+        # for i in range(self.spectral.elemdata.nelements):
+        #     print(self.spectral.elemdata.els[i].element_string)
+
+        if bool(isShiftPressed) == True and self.elementDeets[self.buttonIndex][1] != 1:
+            if self.elementDeets[self.buttonIndex][1] == 2:
+                self.elementsState[1] -= 1
+            elif self.elementDeets[self.buttonIndex][1] == 3:
+                self.elementsState[2] -= 1
+
             self.elementDeets[self.buttonIndex][1] = 0
-            spectral_library.GuralSpectral.removeElemFromModel(self.spectral, self.elemNumber)
-            print('Removed element from Fit')
-            self.statusBar.showMessage('Unlocked %s fit' % self.elemName,2000)
-
-        if self.elementDeets[self.buttonIndex][1] == 1:
+            self.spectral.elemdata.els[self.elemIndex].user_fitflag = 0
+            
+            spectral_library.GuralSpectral.removeElemFromModel(self.spectral, self.elemNumber)          
+            self.statusBar.showMessage('Unlocked and %s removed from plot.' % self.elemName,2000)
+            self.Plot.removeItem(globals()[self.elemName])
+            globals()[self.elemName] = None
+        
+        if self.elementsState[1] > 2 and self.elementDeets[self.buttonIndex][1] == 2:
             self.sender().setStyleSheet('background-color:#FFFF00;color:#000000;')
-            self.statusBar.showMessage('Ready to fit %s' % self.elemName,2000)
+            # spectral_library.GuralSpectral.lockElemFit(self.spectral, self.elemNumber)
+            self.spectral.elemdata.els[self.elemIndex].user_fitflag = 2
+            print('Locked element and added to Fit')
+            self.statusBar.showMessage('Locked %s fit' % self.elemName,2000)
+            self.elementsState[2] += 1
+            self.elementsState[1] -= 1
+            # print(self.elementsState)
+            return
 
-            #========== Obtain model spectra for Iron for warm and hot temperature plasmas
-            # self.spectral.elemdata.els[kelem_Fe].user_fitflag = FITTING
-            # spectral_library.GuralSpectral.elemFitting(self.spectral, self.kelem[elemName])
-            # spectral_library.GuralSpectral.computeWarmPlasmaSpectrum(self.spectral)
-            # spectral_library.GuralSpectral.computeHotPlasmaSpectrum(self.spectral)
+        if self.elementsState[1] > 2:
+            print('You can only have 3 elements in fitting mode at a time! Lock (left-click) or remove (shift-left-click) an element.')
+            self.elementDeets[self.buttonIndex][1] -= 1
+            self.messageBox('You can only have 3 elements in fitting mode at a time! Lock (left-click) or remove (shift-left-click) an element to proceed.')
+            return
+
+        
+        if self.elementDeets[self.buttonIndex][1] == 1:
+            self.sender().setStyleSheet('background-color:#00FF00;color:#000000;')
+            # spectral_library.GuralSpectral.elemFitting(self.spectral, self.elemNumber)
+            self.spectral.elemdata.els[self.elemIndex].user_fitflag = 1
+            self.statusBar.showMessage('Set to fitting mode. %s' % self.elemName,2000)
+            
             self.calculateElementSpectrum()
             self.plotElement(self)
 
+            self.columnDensityClicked()
+            # print('N warm: %s' % self.spectral.elemdata.els[elemIndex].N_warm)
+
+            self.elementsState[1] += 1
+
+            # Need to add calculated spectrum to the sum of the displayed spectra
+            # and then (re)plot the summed spectrum
+
         elif self.elementDeets[self.buttonIndex][1] == 2:
-            self.sender().setStyleSheet('background-color:#00FF00;color:#000000;')
-            spectral_library.GuralSpectral.lockElemFit(self.spectral, self.elemNumber)
-            print('Added element to Fit')
+            self.sender().setStyleSheet('background-color:#FFFF00;color:#000000;')
+            # spectral_library.GuralSpectral.lockElemFit(self.spectral, self.elemNumber)
+            self.spectral.elemdata.els[self.elemIndex].user_fitflag = 2
+            print('Locked element and added to Fit')
             self.statusBar.showMessage('Locked %s fit' % self.elemName,2000)
+            self.elementsState[2] += 1
+            self.elementsState[1] -= 1
+
+        elif self.elementDeets[self.buttonIndex][1] == 3:
+            self.sender().setStyleSheet('background-color:#00FF00;color:#000000;')
+            self.elementDeets[self.buttonIndex][1] = 1
+            self.spectral.elemdata.els[self.elemIndex].user_fitflag = 1
+            self.elementsState[1] += 1
+            self.elementsState[2] -= 1
+
         else:
             self.sender().setStyleSheet('background-color:#FFFFFF;color:#000000;')
 
-        self.fitlessElems = []
-        self.fittingElems = []
-        self.lockedElems = []
+        # self.fitlessElems = []
+        # self.fittingElems = []
+        # self.lockedElems = []
 
         i = 0
         for i in range(len(self.elementDeets)):
             self.fitState[self.elementDeets[i][0]] = self.elementDeets[i][1]
 
-
+        # print(self.elementsState)
 
     ################# DIRECT FILE CONTROL FUNCTIONS #################
 
@@ -1159,23 +1776,159 @@ class Ui(QtWidgets.QMainWindow):
     #     # Update direct frame image view
     #     self.updateDirectFrames()
 
-    def uploadDirectVid(self):
-
+    def loadEventFile(self):
+        self.spectral.vinfinity_kmsec = 40.0
         dlg = QFileDialog()
         dlg.setFileMode(QFileDialog.AnyFile)
 
         if dlg.exec():
-            direct_file_name = dlg.selectedFiles()
+            event_file_name = dlg.selectedFiles()
+            print(event_file_name)
 
-            if direct_file_name[0].endswith('.vid'):
-                # print(direct_file_name)
-                direct_path = os.path.split(direct_file_name[0])[0]
-                direct_name = os.path.split(direct_file_name[0])[1]
+            if event_file_name[0].endswith('.txt'):
+                file_path = os.path.split(event_file_name[0])[0]
+                file_name = os.path.split(event_file_name[0])[1]
+
+                if event_file_name == 'event.txt':            
+                    event_name = file_path.split('/')[-1]
+                else:
+                    event_name = file_name.split('.')[0]
+
+
+                with open(os.path.join(file_path,file_name)) as f:
+                    lines = f.readlines()
+
+                    print(lines[2].split())
+                    print(lines[3].split())
+                    print(lines[4].split())
+                    
+                    
+                    if lines[3].split()[13] == "'KTJ'" or lines[3].split()[15] == "'KTJ'" or lines[4].split()[15] == "'KTJ'":
+                        height = []
+                        event_date = event_name.split('_')[0]
+                        try:
+                            self.spectral.vinfinity_kmsec = float(lines[4].split()[13])
+                        except:
+                            self.spectral.vinfinity_kmsec = 35.0
+                        print('Vinf1: %f' % self.spectral.vinfinity_kmsec)
+                        for line in lines:
+                            if line.split()[0] == 'fit':
+                                theta = float(line.split()[11])
+                                mag = float(line.split()[23]) # Magnitude
+                                try:
+                                    height = float(line.split()[31])
+                                except:
+                                    height = 85.0
+                                # print(theta, mag, height)
+
+                        ### Now, use the event_name to open the vid file. Will need to decompress bz2, first
+                        with bz2.open('/srv/meteor/klingon/events/' + event_date + '/ev_' + event_name + '_02I.vid.bz2') as f:
+                            spectral_vid = f.read()
+
+                        spectral_file_name = '/tmp/ev_%s_02I.vid' % event_name
+                        with open(spectral_file_name, 'wb') as f:
+                            f.write(spectral_vid)
+                            print('Spectral file written to /tmp ...')
+
+                        with bz2.open('/srv/meteor/klingon/events/' + event_date + '/ev_' + event_name + '_02J.vid.bz2') as f:
+                            direct_vid = f.read()
+                            # print(type(test_vid))
+
+                        direct_file_name = '/tmp/ev_%s_02J.vid' % event_name
+                        with open(direct_file_name, 'wb') as f:
+                            f.write(direct_vid)
+                            print('Direct file written to /tmp ...')
+
+
+                        event_split = event_name.split('_')
+                        
+                        self.uploadDirectVid(direct_file_name)
+                        self.uploadSpectralVid(spectral_file_name)
+
+                        os.remove(direct_file_name)
+                        print('Direct file removed from /tmp ...')
+                        os.remove(spectral_file_name)
+                        print('Spectral file removed from /tmp ...')
+
+                        print('Running auto-spectrum-find...')
+                        self.findSpectrumFrame()
+
+                    else:
+                        print('This event has no spectral files.')
+
+            else:
+                pass
+
+    def findSpectrumFrame(self):
+        immean = []
+        for i in range(self.spectral_vidlength):
+            # Set frame 
+            self.spectral_frame = self.spectral_vid.frames[i]
+            self.spectral_frame_img = self.spectral_frame.img_data
+            immean.append(np.max(np.mean(self.spectral_frame_img, axis=1)))
+
+        maxindex = np.argmax(immean)
+        # self.spectral_frame = self.spectral_vid.frames[9]
+        # self.spectral_frame_img = self.spectral_frame.img_data
+        # y=np.mean(self.spectral_frame_img, axis=1)
+
+        # print(np.argmax(immean))
+        # ysmooth = np.convolve(y, np.ones(10)/10, mode='valid')
+
+        # plt.plot(immean)
+        # plt.show()
+
+        # Code below goes to best frame
+        # self.direct_currentframe += 5
+        # self.direct_currentframe = self.direct_currentframe%self.direct_vidlength
+        
+        # # Update frame shown in region
+        # self.updateDirectFrames()
+
+        return maxindex
+
+    def uploadDirectVid(self, file=None):
+        if file == False:
+            dlg = QFileDialog()
+            dlg.setFileMode(QFileDialog.AnyFile)
+
+            if dlg.exec():
+                direct_file_name = dlg.selectedFiles()
+
+                if direct_file_name[0].endswith('.vid'):
+                    direct_path = os.path.split(direct_file_name[0])[0]
+                    direct_name = os.path.split(direct_file_name[0])[1]
+
+                    # self.DirectFilePath_linedit.setText(direct_path)
+                    # self.DirectFileName_linedit.setText(direct_name)
+
+                    self.DirectFileName_label.setText('Direct camera file: ' + os.path.split(direct_file_name[0])[1])
+
+                    self.direct_vid = readVid(direct_path, direct_name)
+                    self.direct_currentframe = int(len(self.direct_vid.frames)/2)
+                    self.direct_vidlength = len(self.direct_vid.frames)
+
+                    self.updateDirectFrames()
+
+                    self.AutoPickDirect_button.setEnabled(True)
+                    self.AutoTrackDirect_button.setEnabled(True)
+                    self.ManualPickDirect_button.setEnabled(True)
+                    self.ClearPicksDirect_button.setEnabled(True)
+                else:
+                    pass
+
+        else:
+            print(file)
+            direct_file_name = file
+
+            if direct_file_name.endswith('.vid'):
+                direct_path = os.path.split(direct_file_name)[0]
+                direct_name = os.path.split(direct_file_name)[1]
 
                 # self.DirectFilePath_linedit.setText(direct_path)
                 # self.DirectFileName_linedit.setText(direct_name)
 
-                self.DirectFileName_label.setText('Direct camera file: ' + os.path.split(direct_file_name[0])[1])
+                self.DirectFileName_label.setText('Direct camera file: ' + os.path.split(direct_file_name)[1])
 
                 self.direct_vid = readVid(direct_path, direct_name)
                 self.direct_currentframe = int(len(self.direct_vid.frames)/2)
@@ -1185,10 +1938,9 @@ class Ui(QtWidgets.QMainWindow):
 
                 self.AutoPickDirect_button.setEnabled(True)
                 self.AutoTrackDirect_button.setEnabled(True)
-                self.ManualPickDirect_button.setEnabled(True)
+                # self.ManualPickDirect_button.setEnabled(True)
                 self.ClearPicksDirect_button.setEnabled(True)
-            else:
-                pass
+
 
     # Update direct frame
     def updateDirectFrames(self):
@@ -1204,10 +1956,20 @@ class Ui(QtWidgets.QMainWindow):
 
         # Display time
         self.dt = unixTime2Date(self.direct_frame.ts, self.direct_frame.tu, dt_obj=False)
-        # print(self.dt)
+
         # self.dt = str(self.dt)
-        self.DirectTime_label.setText(' at ' + str(self.dt[3]) + ':' + str(self.dt[4]) + \
-         ':' + str(self.dt[5]) + '.' + str(self.dt[6]) + 'UT on ' + str(self.dt[0]) + '/' + \
+        dt_h = str(self.dt[3])
+        dt_m = str(self.dt[4])
+        dt_s = str(self.dt[5])
+        dt_us = str(round(self.dt[6]*1000))
+
+        if len(dt_us) == 5:
+            dt_us = '0' + dt_us
+        elif len(dt_us) == 4:
+            dt_us = '00' + dt_us
+
+        self.DirectTime_label.setText(' at ' + dt_h + ':' + dt_m + \
+         ':' + dt_s + '.' + dt_us + 'UT on ' + str(self.dt[0]) + '/' + \
          str(self.dt[1]) + '/' + str(self.dt[2]))
         self.update()
 
@@ -1244,10 +2006,10 @@ class Ui(QtWidgets.QMainWindow):
 
     def forwardFiveDirectFrames(self):
         """
-        Increases the direct frame number by 1 frame to show the next frame.
+        Increases the direct frame number by 5 frames.
         """
 
-        # Increase frame number by one
+        # Increase frame number by five
         self.direct_currentframe += 5
         self.direct_currentframe = self.direct_currentframe%self.direct_vidlength
         
@@ -1269,10 +2031,10 @@ class Ui(QtWidgets.QMainWindow):
 
     def backFiveDirectFrames(self):
         """
-        Decrease the direct frame number by 1 frame to show the previous frame.
+        Decrease the direct frame number by 5 frames.
         """
 
-        # Decrease frame number by one
+        # Decrease frame number by five
         self.direct_currentframe -= 5
         self.direct_currentframe = self.direct_currentframe%self.direct_vidlength
         
@@ -1390,32 +2152,92 @@ class Ui(QtWidgets.QMainWindow):
 
                 # Init a new Flat structure
                 self.flat_structure = FlatStruct(flat_img, dark=dark)
+                self.spectral_flat_exists = True
             else:
                 pass
 
-    def uploadSpectralVid(self):
+    def autoSpectralFlat(self):
 
-        dlg = QFileDialog()
-        dlg.setFileMode(QFileDialog.AnyFile)
+        flats = [self.spectral_vid.frames[i].img_data for i in range(len(self.spectral_vid.frames))]
+        flat_stack = np.stack(flats)
 
-        if dlg.exec():
-            spectral_file_name = dlg.selectedFiles()
+        auto_flat = np.median(flat_stack, axis=0)
 
-            if spectral_file_name[0].endswith('.vid'):
-                # print(spectral_file_name)
-                spectral_path = os.path.split(spectral_file_name[0])[0]
-                spectral_name = os.path.split(spectral_file_name[0])[1]
+        self.flat_structure = FlatStruct(auto_flat, dark=None)
+
+        self.spectral_frame_img = applyFlat(self.spectral_frame_img, self.flat_structure)
+
+        # Set image levels
+        self.minv = np.percentile(self.spectral_frame_img, 0.1)
+        self.maxv = np.percentile(self.spectral_frame_img, 99.95)
+        gamma = 1
+
+        # Create an image with properly adjust levels
+        spectral_frame_img = adjustLevels(self.spectral_frame_img, self.minv, gamma, self.maxv, scaleto8bits=True)
+
+        # Set spectral image
+        self.spectral_image.setImage(spectral_frame_img.T)
+        self.spectral_flat_exists = True
+
+    def uploadSpectralVid(self, file=None):
+        if file == False:
+            dlg = QFileDialog()
+            dlg.setFileMode(QFileDialog.AnyFile)
+
+            if dlg.exec():
+                spectral_file_name = dlg.selectedFiles()
+
+                if spectral_file_name[0].endswith('.vid'):
+                    # print(spectral_file_name)
+                    spectral_path = os.path.split(spectral_file_name[0])[0]
+                    spectral_name = os.path.split(spectral_file_name[0])[1]
+
+                    self.SpectralFileName_label.setText('Spectral camera file: ' + os.path.split(spectral_file_name[0])[1])
+
+                    self.spectral_vid = readVid(spectral_path, spectral_name)
+
+                    self.spectral_vidlength = len(self.spectral_vid.frames)
+                    self.spectral_currentframe = findSpectrumFrame()
+                    # print(self.spectral_currentframe)
+                    # self.spectral_currentframe = int(len(self.spectral_vid.frames)/2)
+                    
+
+                    self.updateSpectralFrames()
+
+                    ### Enable some buttons ###
+                    self.FlattenSpectral_button.setEnabled(True)
+                    self.AutoPick_button.setEnabled(True)
+                    self.AutoTrackSpectral_button.setEnabled(True)
+                    self.SelectSpectralRegion_button.setEnabled(True)
+                    self.ClearSpectralRegion_button.setEnabled(True)
+                    self.CheckSpectralRegion_button.setEnabled(True)
+                    self.CheckSpectralBackground_button.setEnabled(True)
+                    self.UploadSpectralBias_button.setEnabled(True)
+                    self.UploadSpectralFlat_button.setEnabled(True)
+                    self.AutoSpectralFlat_button.setEnabled(True)
+                else:
+                    pass
+        else:
+            print(file)
+            spectral_file_name = file
+
+            if spectral_file_name.endswith('.vid'):
+                spectral_path = os.path.split(spectral_file_name)[0]
+                spectral_name = os.path.split(spectral_file_name)[1]
 
                 # self.DirectFilePath_linedit.setText(direct_path)
                 # self.DirectFileName_linedit.setText(direct_name)
 
-                self.SpectralFileName_label.setText('Spectral camera file: ' + os.path.split(spectral_file_name[0])[1])
+                self.SpectralFileName_label.setText('Spectral camera file: ' + os.path.split(spectral_file_name)[1])
 
                 self.spectral_vid = readVid(spectral_path, spectral_name)
-                self.spectral_currentframe = int(len(self.spectral_vid.frames)/2)
                 self.spectral_vidlength = len(self.spectral_vid.frames)
+                self.spectral_currentframe = self.findSpectrumFrame()
+                # self.spectral_currentframe = int(len(self.spectral_vid.frames)/2)
+                # self.spectral_vidlength = len(self.spectral_vid.frames)
 
                 self.updateSpectralFrames()
+
                 self.FlattenSpectral_button.setEnabled(True)
                 self.AutoPick_button.setEnabled(True)
                 self.AutoTrackSpectral_button.setEnabled(True)
@@ -1423,27 +2245,60 @@ class Ui(QtWidgets.QMainWindow):
                 self.ClearSpectralRegion_button.setEnabled(True)
                 self.CheckSpectralRegion_button.setEnabled(True)
                 self.CheckSpectralBackground_button.setEnabled(True)
-            else:
-                pass
+                self.UploadSpectralBias_button.setEnabled(True)
+                self.UploadSpectralFlat_button.setEnabled(True)
+                self.AutoSpectralFlat_button.setEnabled(True)
 
     # Update spectral frame
     def updateSpectralFrames(self):
         """
-        Updates frame shown in the direct file image view. 
+        Updates frame shown in the spectral file image view. 
         Updates time stamp and frame number. 
         Applies image flat.
         """
 
         # Set frame 
         self.spectral_frame = self.spectral_vid.frames[self.spectral_currentframe]
+
         self.spectral_frame_img = self.spectral_frame.img_data
+        # self.spectral_frame_img = self.avg_frame_img
+
+        try:
+            if self.spectral_flat_exists:
+                self.spectral_frame_img = applyFlat(self.spectral_frame_img, self.flat_structure)
+        except:
+            self.spectral_flat_exists = False
+            pass
+
+        # Set image levels
+        if self.spectral_flat_exists == False:
+            self.minv = np.percentile(self.spectral_frame_img, 0.1)
+            self.maxv = np.percentile(self.spectral_frame_img, 99.95)
+        
+        gamma = 1
+
+        # Create an image with properly adjust levels
+        spectral_frame_img = adjustLevels(self.spectral_frame_img, self.minv, gamma, self.maxv, scaleto8bits=True)
 
         # Display time
         self.st = unixTime2Date(self.spectral_frame.ts, self.spectral_frame.tu, dt_obj=False)
+        print('DT-spec')
+        print(self.st)
         # self.st = str(self.st)
         # self.SpectralTime_label.setText(self.st)
-        self.SpectralTime_label.setText(' at ' + str(self.st[3]) + ':' + str(self.st[4]) + \
-         ':' + str(self.st[5]) + '.' + str(self.st[6]) + 'UT on ' + str(self.st[0]) + '/' + \
+
+        st_h = str(self.st[3])
+        st_m = str(self.st[4])
+        st_s = str(self.st[5])
+        st_us = str(round(self.st[6]*1000))
+
+        if len(st_us) == 5:
+            st_us = '0' + st_us
+        elif len(st_us) == 4:
+            st_us = '00' + st_us
+
+        self.SpectralTime_label.setText(' at ' + st_h + ':' + st_m + \
+         ':' + st_s + '.' + st_us + 'UT on ' + str(self.st[0]) + '/' + \
          str(self.st[1]) + '/' + str(self.st[2]))
         self.update()
 
@@ -1457,7 +2312,7 @@ class Ui(QtWidgets.QMainWindow):
         #     self.spectral_frame_img = applyFlat(self.spectral_frame_img, self.flat_structure)
 
         # Set spectral image
-        self.spectral_image.setImage(self.spectral_frame_img.T) 
+        self.spectral_image.setImage(spectral_frame_img.T) 
 
     # Click to next Spectral frame
     def nextSpectralFrame(self):
@@ -1557,7 +2412,7 @@ class Ui(QtWidgets.QMainWindow):
     def autoTrackDirect(self):
         
         # Set frame to be displayed
-        print(self.direct_currentframe)
+        # print(self.direct_currentframe)
         # self.direct_frame = self.direct_vid.frames[self.direct_currentframe]
         # self.direct_frame_img = self.direct_frame.img_data
 
@@ -2223,6 +3078,8 @@ class Ui(QtWidgets.QMainWindow):
         # Reset array
         scaled_spectral_profile = scaled_spectral_profile[middle_index:]
 
+        self.plotMax = np.max(spectral_profile)
+
         # Set axis titles 
         self.Plot.setLabel('left', 'Intensity')
         self.Plot.setLabel('bottom', 'Wavelength (nm)')
@@ -2230,8 +3087,11 @@ class Ui(QtWidgets.QMainWindow):
         # Create the plot
         self.Plot.plot(scaled_spectral_profile, spectral_profile, pen = pen)
         self.Plot.setXRange(np.min(scaled_spectral_profile),np.max(scaled_spectral_profile))
+        self.Plot.setYRange(0,self.plotMax)
         self.CalibrateSpectrum_button.setEnabled(True)
         self.SetReference_button.setEnabled(True)
+
+        
 
     def setReference(self):
         self.SetReference_button.setText('Remove Reference')
@@ -2352,7 +3212,6 @@ class Ui(QtWidgets.QMainWindow):
     # Modified for spinner - MJM
     def updateRollValue(self):
         rollValue = self.Roll_rollbox.value()
-        # print(rollValue)
 
 
     # def addLmm(self, increment=0.1):
@@ -2400,7 +3259,6 @@ class Ui(QtWidgets.QMainWindow):
     # Modified for spinner - MJM
     def updateLmmValue(self):
         lmmValue = self.Lmm_rollbox.value()
-        # print(lmmValue)
 
 
     # def addHighTemp(self, increment=100):
@@ -2448,7 +3306,6 @@ class Ui(QtWidgets.QMainWindow):
     # Modified for spinner - MJM
     def updateHighTempValue(self):
         highTempValue = self.HighTemp_rollbox.value()
-        # print(highTempValue)
 
 
     # def addLowTemp(self, increment=100):
@@ -2496,7 +3353,6 @@ class Ui(QtWidgets.QMainWindow):
     # Modified for spinner - MJM
     def updateLowTempValue(self):
         lowTempValue = self.LowTemp_rollbox.value()
-        # print(lowTempValue)
 
 
     # def addSigma(self, increment=0.1):
@@ -2544,13 +3400,14 @@ class Ui(QtWidgets.QMainWindow):
     def updateSigmaValue(self):
         # self.sigmaValue = self.Sigma_rollbox.value()
         self.spectral.changeBroadening(self.Sigma_rollbox.value())
-        # print(self.Sigma_rollbox.value())
+        self.refreshPlot()
 
     def updateHot2WarmRatio(self):
+        print('Changing hot2warm ratio')
         self.spectral.changeHot2WarmRatio(self.Hot2WarmRatio_rollbox.value())
+        # self.refreshPlot()
         # self.hot2Warm = self.Hot2WarmRatio_rollbox.value()
         # self.spectral.elemdata.hot2warm = self.Hot2WarmRatio_rollbox.value()
-        # print(self.spectral.elemdata.hot2warm)
 
 
     def hotTempToggle(self):
@@ -2583,14 +3440,14 @@ class Ui(QtWidgets.QMainWindow):
 
     def responsivityToggle(self):
         """ handle the toggling of the Responsivity button """
-        if self.Respon_button.isChecked():
+        if self.Responsivity_check.isChecked():
             pass # do focus
         else:
             pass # do unfocus
 
     def extinctionToggle(self):
         """ handle the toggling of the Extinction button """
-        if self.Extinction_button.isChecked():
+        if self.Extinction_check.isChecked():
             pass # do focus
         else:
             pass # do unfocus

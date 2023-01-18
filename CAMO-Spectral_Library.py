@@ -1,5 +1,6 @@
 """ 
-	Spectral library 
+	Sels
+	pectral library 
 	Interfaces Pete Gural's C library with python
 	Built for use with CAMO-S analysis
 
@@ -864,7 +865,7 @@ class GuralSpectral(object):
 		self.starspectra = StarSpectraInfo()
 
 		# Add variables needed by plasmaVolumes - MJM
-		self.vinfinity_kmsec = 40.0     # km/sec
+		# self.vinfinity_kmsec = 40.0     # km/sec
 		self.approach_angle_radians = 55.0 * 3.141592654 / 180.0
 		self.earth_radius_km = 6378.16  # WGS84
 		self.site_height_km = 0.2       # Above WGS84 Earth surface
@@ -945,7 +946,7 @@ class GuralSpectral(object):
 		self.spectral_lib.ReadStarSpectra.restype = VOID 
 		self.spectral_lib.ReadStarSpectra.argtypes = [ 
 				ct.POINTER(CHAR),
-				ct.POINTER(StarSpectraInfo)#self.starspectra)
+				ct.POINTER(StarSpectraInfo) #self.starspectra)
 		]
 
 		self.spectral_lib.GetStarIndexFromSPType.restype = INT
@@ -956,19 +957,19 @@ class GuralSpectral(object):
 
 		self.spectral_lib.GetStarIndexFromUserID.restype = INT
 		self.spectral_lib.GetStarIndexFromUserID.argtypes = [
-				ct.POINTER(StarSpectraInfo),#self.starspectra),
+				ct.POINTER(StarSpectraInfo), #self.starspectra),
 				INT
 		]
 
 		self.spectral_lib.GetStarIndexFromHIP.restype = LONG
 		self.spectral_lib.GetStarIndexFromHIP.argtypes = [ 
-				ct.POINTER(StarSpectraInfo),#self.starspectra),
+				ct.POINTER(StarSpectraInfo), #self.starspectra),
 				LONG 
 		]
 
 		self.spectral_lib.InterpolateStarSpectrum.restype = VOID 
 		self.spectral_lib.InterpolateStarSpectrum.argtypes = [ 
-				ct.POINTER(StarSpectraInfo),#self.starspectra),
+				ct.POINTER(StarSpectraInfo), #self.starspectra),
 				LONG,
 				INT,
 				PDOUBLE,
@@ -977,7 +978,7 @@ class GuralSpectral(object):
 
 		self.spectral_lib.FreeMemoryStarSpectra.restype = VOID
 		self.spectral_lib.FreeMemoryStarSpectra.argtypes = [ 
-				ct.POINTER(StarSpectraInfo),#self.starspectra)
+				ct.POINTER(StarSpectraInfo), #self.starspectra)
 		]
 
 		#################### Responsivity and extinction functions ####################
@@ -1288,7 +1289,20 @@ class GuralSpectral(object):
 
 	def writeSpectrum(self, index):
 		# self.elemdata.els[46].spechi = 10000
-		self.spectral_lib.WriteSpectrum(b"spectral_library/DriverOutputFiles/FeModelSpectra_LoHi-test.txt", self.spcalib.nwavelengths, self.spcalib.wavelength_nm, self.elemdata.els[index].speclo, self.elemdata.els[index].spechi)
+		self.spectral_lib.WriteSpectrum(b"test.txt", self.spcalib.nwavelengths, self.spcalib.wavelength_nm, self.elemdata.els[index].speclo, self.elemdata.els[index].spechi)
+
+	def writeFullSpectrum(self):
+		self.spectral_lib.WriteSpectrum(b"test.txt", self.spcalib.nwavelengths, self.spcalib.wavelength_nm, self.spectra.fit_spectrum, self.spectra.fit_spectrum)
+
+	def writeFullSpectrum2(self, out_file):
+		with open(out_file, 'w') as f:
+			### Write file header
+			# file_id / name
+			# 
+			#
+			#
+			for w in range(self.spcalib.nwavelengths):
+				f.write('%f %f %f\n' % (w, self.spcalib.wavelength_nm[w], self.spectra.fit_spectrum[w]))
 
 	def loadMeteorTrajectory(self, traj_path):
 		""" 
@@ -1340,7 +1354,7 @@ class GuralSpectral(object):
 				self.grat_info
 
 
-	def getElementIndex(self, atomic_mass_num):
+	def getElementIndex(self, ionization_state, atomic_mass_num):
 		"""
 		Retrieves an element from the elemdata class.
 		
@@ -1351,7 +1365,8 @@ class GuralSpectral(object):
 		"""
 
 		# Extract element based on atomic number
-		element_index = self.spectral_lib.GetElementIndex(atomic_mass_num, 0, self.elemdata)
+		element_index = self.spectral_lib.GetElementIndex(atomic_mass_num, ionization_state, self.elemdata)
+		# print(element_index)
 
 		# Returns element
 		return element_index
@@ -1368,8 +1383,11 @@ class GuralSpectral(object):
 		"""
 
 		# Compute plasma volumes
+		# self.vinfinity_kmsec = vinf
+		print('Vinf: %f' % self.vinfinity_kmsec)
 		self.spectral_lib.PlasmaVolumes(self.meteor_height_km, self.meteor_range_km, self.approach_angle_radians, \
-			self.spconfig.default_hot2warm, self.elemdata) 
+			self.elemdata.hot2warm, self.elemdata)
+
 
 	
 	def extinctionModel(self):
@@ -1545,13 +1563,16 @@ class GuralSpectral(object):
 		if elem is None:
 
 			# Selects first active fitting element in the order of Mg, Na, Fe
-			self.elemdata.kelem_ref = self.spectral_lib.GetPrimaryNeutralElement(self.elemdata)  
-			self.elemdata.kelem_ref = self.kelem_ref
+			self.elemdata.kelem_ref = self.spectral_lib.GetPrimaryNeutralElement(self.elemdata)
+			# self.elemdata.kelem_ref = self.kelem_ref
+			# print(self.elemdata.kelem_ref)
+			self.kelem_ref = self.elemdata.kelem_ref
 
 		else: 
 
 			self.elemdata.kelem_ref = elem  
-			self.elemdata.kelem_ref = self.kelem_ref
+			# self.elemdata.kelem_ref = self.kelem_ref
+			self.kelem_ref = self.elemdata.kelem_ref
 		
 		return self.kelem_ref
 	
@@ -1570,7 +1591,7 @@ class GuralSpectral(object):
 				continue #... do not report non-active elements
 	
 	
-	def computeFullSpec(self, elem1, elem2):
+	def computeFullSpec(self, elem1, elem2, elem3=None):
 		"""
 		Compute the full spectrum which requires column densities for warm, hot, neutrals, ions
 		Artificially set the neutral warm column densities of the 2 elements
@@ -1587,13 +1608,19 @@ class GuralSpectral(object):
 		"""
 
 		# Normally get col density from a fit (see later)
-		self.elemdata.els[elem1].N_warm = 3.0e+12  
+		self.elemdata.els[elem1].N_warm = 3.0e+9  
 
 		# Normally get col density from a fit (see later)
-		self.elemdata.els[elem2].N_warm = 1.2e+09  
+		# self.elemdata.els[elem2].N_warm = 1.2e+09
+		self.elemdata.els[elem2].N_warm = 3.0e+9
+
+		if elem3 != None:
+			# self.elemdata.els[elem3].N_warm = 1.0e+09
+			self.elemdata.els[elem3].N_warm = 3.0e+10
 
 		# Sets ne_jones
-		ne_guess = self.spectral_lib.JonesElectronDensity(self.elemdata, self.elemdata.kelem_ref)         
+		ne_guess = self.spectral_lib.JonesElectronDensity(self.elemdata, self.elemdata.kelem_ref)
+		print(ne_guess)         
 
 		# Sets ne_iter
 		self.ne = float(self.spectral_lib.IterativeElectronDensity(self.elemdata, self.elemdata.kelem_ref, ne_guess))  
@@ -1684,8 +1711,20 @@ class GuralSpectral(object):
 		# Calculate the model spectrum
 		self.spectral_lib.SpectrumGivenAllCoefs(self.elemdata, self.spectra.fit_spectrum)
 
+	def getStarIndexFromHIP(self, hip):
+		# Define hipparcos number
+		self.hip = hip
 
-	def interpolateCatalogedSpectrum(self, hip):
+		# Define star index
+		# self.star_index = self.spectral_lib.GetStarIndexFromHIP(self.starspectra, self.hip)
+		# Interpolate star spectrum
+		self.spectral_lib.InterpolateStarSpectrum(self.starspectra, self.star_index, self.spcalib.nwavelengths, \
+			self.spcalib.wavelength_nm, self.spcalib.ref_star_spec)
+
+		# print('Yay')
+
+
+	def interpolateCatalogedSpectrum(self, hipno):
 		"""
 		Get index for the desired star from the star catalog, show the function
 		call to interpolate its catalogued spectrum to the user defined wavelengths. 
@@ -1696,11 +1735,15 @@ class GuralSpectral(object):
 			Interpolated star spectrum
 		"""
 
+		# print('Testing 4 5 6')
+
 		# Define hipparcos number
-		self.hip = hip
+		self.hip = hipno
+		# print(self.hip)
 
 		# Define star index
 		self.star_index = self.spectral_lib.GetStarIndexFromHIP(self.starspectra, self.hip)
+		# print(self.star_index)
 
 		# Interpolate star spectrum
 		self.spectral_lib.InterpolateStarSpectrum(self.starspectra, self.star_index, self.spcalib.nwavelengths, \

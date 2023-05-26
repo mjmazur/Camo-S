@@ -30,6 +30,7 @@ import bz2
 from sklearn.linear_model import RANSACRegressor
 from sklearn.metrics import (r2_score, mean_absolute_error)
 from scipy.signal import savgol_filter
+from scipy import interpolate
 
 #################### PYQT5 LIBRARY/PACKAGE IMPORTS ####################
 
@@ -703,6 +704,8 @@ class Ui(QtWidgets.QMainWindow):
         self.SetReference_button.clicked.connect(self.setReference)            
         # Clear the plot    
         self.Clear_button.clicked.connect(self.clearSpec)
+        # Save the plot
+        self.SavePlot_button.clicked.connect(self.saveSpec)
         #MJM
 
 
@@ -901,6 +904,7 @@ class Ui(QtWidgets.QMainWindow):
         self.elementDeets.append(['Zr-II',0,40,spectral_library.GuralSpectral.getElementIndex(self.spectral, 1, 40)])
         self.elementDeets.append(['Zr-I',0,40,spectral_library.GuralSpectral.getElementIndex(self.spectral, 0, 40)])
 
+        self.elemIndex = 0
 
         # i = 0
         # for i in range(len(self.elementDeets)):
@@ -987,6 +991,12 @@ class Ui(QtWidgets.QMainWindow):
         self.ComputeCalibration_button.clicked.connect(self.computeCalibration)
 
         self.elementsState = np.zeros(3) # unlocked, fitting, locked
+
+        try:
+            self.responsivityDefault = np.genfromtxt('DefaultResponsivity.csv', delimiter=',', skip_header=2)
+            print('Loaded default responsivity curve.')
+        except:
+            print('Unable to load default responsivity curve!')
 
     # def mousePressEvent(self, QMouseEvent):
     #     if QMouseEvent.button() == Qt.LeftButton:
@@ -2589,7 +2599,7 @@ class Ui(QtWidgets.QMainWindow):
                     y_vals = b_ransac[np.argmin(mae)]+20+ np.tan(math.radians(best_roll))*x_vals
                     # ax.plot(x_vals, y_vals, '--')
 
-                    self.spectralAutoROI(image.shape[1],20,best_roll,b_ransac[np.argmin(mae)])
+                    self.spectralAutoROI(image.shape[1],10,best_roll,b_ransac[np.argmin(mae)])
 
             else:
                 break
@@ -3078,14 +3088,24 @@ class Ui(QtWidgets.QMainWindow):
         # Reset array
         scaled_spectral_profile = scaled_spectral_profile[middle_index:]
 
-        self.plotMax = np.max(spectral_profile)
+        # Interpolate responsivity curve to match scaled_spectral_profile
+        xM = self.responsivityDefault[:,0]
+        yM = self.responsivityDefault[:,1]
+        fM = interpolate.interp1d(xM,yM)
+        yMnew = fM(scaled_spectral_profile)
+
+        print(len(yMnew))
+        print(np.min(scaled_spectral_profile), np.max(scaled_spectral_profile), len(scaled_spectral_profile))
+
+        self.plotMax = np.max(np.divide(spectral_profile,yMnew))
 
         # Set axis titles 
         self.Plot.setLabel('left', 'Intensity')
         self.Plot.setLabel('bottom', 'Wavelength (nm)')
 
         # Create the plot
-        self.Plot.plot(scaled_spectral_profile, spectral_profile, pen = pen)
+        self.Plot.plot(scaled_spectral_profile, np.divide(spectral_profile,yMnew), pen = pen)
+        self.Plot.plot(scaled_spectral_profile, spectral_profile, pen = pg.mkPen(pg.intColor(2)), width = 1)
         self.Plot.setXRange(np.min(scaled_spectral_profile),np.max(scaled_spectral_profile))
         self.Plot.setYRange(0,self.plotMax)
         self.CalibrateSpectrum_button.setEnabled(True)
@@ -3101,12 +3121,8 @@ class Ui(QtWidgets.QMainWindow):
         self.PlottedSpectrumNumber = 0
         self.Plot.clear()
 
-
-
-
-
-
-
+    def saveSpec(self):
+        print('Saving plot...')
 
     # def updateFlatName(self):
     #     """ update flat structure when FlatName_linedit is selected and enter pressed """
@@ -3400,7 +3416,7 @@ class Ui(QtWidgets.QMainWindow):
     def updateSigmaValue(self):
         # self.sigmaValue = self.Sigma_rollbox.value()
         self.spectral.changeBroadening(self.Sigma_rollbox.value())
-        self.refreshPlot()
+        # self.refreshPlot()
 
     def updateHot2WarmRatio(self):
         print('Changing hot2warm ratio')

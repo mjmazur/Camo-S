@@ -1384,7 +1384,7 @@ class GuralSpectral(object):
 
 		# Compute plasma volumes
 		# self.vinfinity_kmsec = vinf
-		print('Vinf: %f' % self.vinfinity_kmsec)
+		# print('Vinf: %f' % self.vinfinity_kmsec)
 		self.spectral_lib.PlasmaVolumes(self.meteor_height_km, self.meteor_range_km, self.approach_angle_radians, \
 			self.elemdata.hot2warm, self.elemdata)
 

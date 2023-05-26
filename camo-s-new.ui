@@ -288,7 +288,7 @@
      <enum>QTabWidget::East</enum>
     </property>
     <property name="currentIndex">
-     <number>3</number>
+     <number>1</number>
     </property>
     <property name="documentMode">
      <bool>false</bool>
@@ -1277,7 +1277,7 @@
        <rect>
         <x>21</x>
         <y>80</y>
-        <width>203</width>
+        <width>181</width>
         <height>311</height>
        </rect>
       </property>
@@ -2074,10 +2074,10 @@
    <widget class="QPushButton" name="Clear_button">
     <property name="geometry">
      <rect>
-      <x>1330</x>
-      <y>10</y>
-      <width>93</width>
-      <height>28</height>
+      <x>1326</x>
+      <y>20</y>
+      <width>91</width>
+      <height>21</height>
      </rect>
     </property>
     <property name="text">
@@ -2225,6 +2225,19 @@
     </property>
     <property name="text">
      <string>nm/pix</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="SavePlot_button">
+    <property name="geometry">
+     <rect>
+      <x>1230</x>
+      <y>20</y>
+      <width>91</width>
+      <height>21</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Save Plot</string>
     </property>
    </widget>
   </widget>
